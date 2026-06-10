@@ -79,7 +79,7 @@ def test_review_queue_lists_pending_extracted_runs(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_review_run(tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workflow-runs/review-queue")
 
     assert response.status_code == 200
@@ -94,7 +94,7 @@ def test_review_detail_includes_source_preview_while_retained(monkeypatch, tmp_p
     use_temp_db(monkeypatch, tmp_path)
     seed_review_run(tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workflow-runs/run-1/review")
 
     assert response.status_code == 200
@@ -108,7 +108,7 @@ def test_review_detail_marks_source_unavailable_after_deletion(monkeypatch, tmp_
     use_temp_db(monkeypatch, tmp_path)
     seed_review_run(tmp_path, deleted=True)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workflow-runs/run-1/review")
 
     assert response.status_code == 200
@@ -119,7 +119,7 @@ def test_review_fields_can_be_updated_and_approval_requires_screen_review(monkey
     use_temp_db(monkeypatch, tmp_path)
     seed_review_run(tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         update = client.patch(
             "/workflow-runs/run-1/review/fields",
             json={"reviewer": "reviewer-1", "extracted_fields": {"summary": "Edited", "count": 2}},
@@ -143,7 +143,7 @@ def test_approved_run_exports_writeback_audits_and_purges_sensitive_source(monke
     seed_review_run(tmp_path)
     source_path = tmp_path / "data" / "uploads" / "doc-1" / "source.txt"
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         json_export = client.get("/workflow-runs/run-1/export?format=json")
         csv_export = client.get("/workflow-runs/run-1/export?format=csv")
         approved = client.post("/workflow-runs/run-1/review/approve", json={"reviewer": "reviewer-1", "fields_reviewed": True})

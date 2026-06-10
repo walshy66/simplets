@@ -83,6 +83,10 @@ class WorkspaceBrandingUpdate(BaseModel):
     primary_color: str | None = None
 
 
+class WorkspaceUserUpsert(BaseModel):
+    role: WorkspaceRole
+
+
 class WorkspaceUser(BaseModel):
     id: str
     workspace_id: str

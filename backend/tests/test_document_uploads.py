@@ -16,7 +16,7 @@ def use_temp_db(monkeypatch, tmp_path):
 def test_document_upload_creates_temporary_file_metadata_and_workflow_run(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.post(
             "/documents/upload",
             data={"intent": "summarize", "uploader": "user-123"},
@@ -61,7 +61,7 @@ def test_uploaded_document_extraction_uses_provider_intent_and_returns_editable_
 
     app.dependency_overrides[get_extraction_provider] = lambda: RecordingExtractionProvider()
     try:
-        with TestClient(app) as client:
+        with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
             upload = client.post(
                 "/documents/upload",
                 data={"intent": "extract_actions", "uploader": "user-123"},
@@ -89,7 +89,7 @@ def test_uploaded_document_extraction_uses_provider_intent_and_returns_editable_
 def test_uploaded_document_can_be_deleted_when_loaded_by_mistake(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         upload = client.post(
             "/documents/upload",
             data={"intent": "summarize", "uploader": "user-123"},
@@ -111,7 +111,7 @@ def test_uploaded_document_can_be_deleted_when_loaded_by_mistake(monkeypatch, tm
 def test_document_upload_requires_intent_uploader_and_file(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         missing_intent = client.post(
             "/documents/upload",
             data={"uploader": "user-123"},

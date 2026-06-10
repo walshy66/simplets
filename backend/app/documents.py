@@ -23,7 +23,8 @@ from app.schemas import (
     Workspace,
     WorkflowRun,
 )
-from app.workspaces import resolve_workspace
+from app.auth import WorkspaceActor, require_any_staff, require_reviewer
+from app.tenancy import resolve_workspace
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 workflow_router = APIRouter(prefix="/workflow-runs", tags=["workflow-runs"])
@@ -117,8 +118,9 @@ def _mock_destination_record_id(workflow_run_id: str) -> str:
 @workflow_router.get("/review-queue", response_model=list[ReviewQueueItem])
 def list_review_queue(
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_any_staff),
 ) -> list[ReviewQueueItem]:
+    workspace = actor.workspace
     rows = conn.execute(
         """
         SELECT
@@ -148,9 +150,9 @@ def list_review_queue(
 def get_review_run(
     workflow_run_id: str,
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_any_staff),
 ) -> ReviewRunDetail:
-    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
+    review_item = _get_review_item(conn, workflow_run_id, actor.workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     return ReviewRunDetail(**review_item.model_dump(), source_preview=_source_preview(review_item.document))
@@ -161,9 +163,9 @@ def update_review_fields(
     workflow_run_id: str,
     update: ReviewFieldsUpdate,
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_reviewer),
 ) -> WorkflowRun:
-    if _get_review_item(conn, workflow_run_id, workspace.id) is None:
+    if _get_review_item(conn, workflow_run_id, actor.workspace.id) is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     timestamp = now_iso()
     conn.execute(
@@ -184,10 +186,10 @@ def export_workflow_run(
     workflow_run_id: str,
     format: str = "json",
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_reviewer),
 ):
     workflow_run = conn.execute(
-        "SELECT * FROM workflow_runs WHERE id = ? AND workspace_id = ?", (workflow_run_id, workspace.id)
+        "SELECT * FROM workflow_runs WHERE id = ? AND workspace_id = ?", (workflow_run_id, actor.workspace.id)
     ).fetchone()
     if workflow_run is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
@@ -211,9 +213,9 @@ def approve_review_run(
     workflow_run_id: str,
     approval: ReviewApprovalRequest,
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_reviewer),
 ) -> WorkflowRun:
-    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
+    review_item = _get_review_item(conn, workflow_run_id, actor.workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     timestamp = now_iso()
@@ -264,9 +266,9 @@ def approve_review_run(
 def delete_workflow_run(
     workflow_run_id: str,
     conn: sqlite3.Connection = Depends(get_connection),
-    workspace: Workspace = Depends(resolve_workspace),
+    actor: WorkspaceActor = Depends(require_reviewer),
 ) -> Response:
-    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
+    review_item = _get_review_item(conn, workflow_run_id, actor.workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     if review_item.review_status == ReviewStatus.APPROVED:

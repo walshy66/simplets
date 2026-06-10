@@ -31,7 +31,7 @@ def upload(client: TestClient, host: str) -> dict:
 def test_subdomain_host_routes_to_matching_workspace(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         workspace = provision(client, "Client A", "clienta")
         response = client.get("/workspaces/current", headers={"host": "clienta.simplets.com.au"})
 
@@ -43,7 +43,7 @@ def test_subdomain_host_routes_to_matching_workspace(monkeypatch, tmp_path):
 def test_unknown_subdomain_host_is_rejected(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workspaces/current", headers={"host": "ghost.simplets.com.au"})
 
     assert response.status_code == 404
@@ -52,7 +52,7 @@ def test_unknown_subdomain_host_is_rejected(monkeypatch, tmp_path):
 def test_unrelated_host_is_rejected(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workspaces/current", headers={"host": "evil.example.com"})
 
     assert response.status_code == 404
@@ -61,7 +61,7 @@ def test_unrelated_host_is_rejected(monkeypatch, tmp_path):
 def test_duplicate_subdomain_conflicts(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         provision(client, "Client A", "clienta")
         response = client.post("/workspaces", json={"name": "Imposter", "subdomain": "clienta"})
 
@@ -71,7 +71,7 @@ def test_duplicate_subdomain_conflicts(monkeypatch, tmp_path):
 def test_invalid_and_reserved_subdomains_rejected(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         invalid = client.post("/workspaces", json={"name": "Bad", "subdomain": "Bad_Sub!"})
         reserved = client.post("/workspaces", json={"name": "Www", "subdomain": "www"})
 
@@ -82,7 +82,7 @@ def test_invalid_and_reserved_subdomains_rejected(monkeypatch, tmp_path):
 def test_workflow_runs_are_invisible_across_workspaces(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         provision(client, "Client A", "clienta")
         provision(client, "Client B", "clientb")
 
@@ -121,7 +121,7 @@ def test_workflow_runs_are_invisible_across_workspaces(monkeypatch, tmp_path):
 def test_upload_is_stamped_with_resolved_workspace(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         workspace = provision(client, "Client A", "clienta")
         payload = upload(client, "clienta.simplets.com.au")
 
@@ -132,7 +132,7 @@ def test_upload_is_stamped_with_resolved_workspace(monkeypatch, tmp_path):
 def test_dev_host_falls_back_to_default_workspace(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         response = client.get("/workspaces/current")
 
     assert response.status_code == 200
@@ -142,7 +142,7 @@ def test_dev_host_falls_back_to_default_workspace(monkeypatch, tmp_path):
 def test_branding_is_configurable_per_workspace(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         provision(client, "Client A", "clienta")
         provision(client, "Client B", "clientb")
         patched = client.patch(
