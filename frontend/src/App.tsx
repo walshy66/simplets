@@ -3,6 +3,7 @@ import { listSessions, restartSession, resumeSession, Session, startSession, sto
 import DocumentUploadPanel from './components/DocumentUploadPanel';
 import ReviewQueuePanel from './components/ReviewQueuePanel';
 import SessionCreateForm from './components/SessionCreateForm';
+import { AuthControls } from './auth';
 import { resolveSelectedSession } from './sessionSelectionModel';
 import SessionDetail from './components/SessionDetail';
 import SessionList from './components/SessionList';
@@ -73,8 +74,11 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <h1>SimpleTS</h1>
-        <p>Local laptop MVP for managing coding-agent sessions.</p>
+        <div>
+          <h1>SimpleTS</h1>
+          <p>Local laptop MVP for managing coding-agent sessions.</p>
+        </div>
+        <AuthControls />
       </header>
       <div className="session-dashboard">
         <div className="session-sidebar">

@@ -1,5 +1,13 @@
 const API_BASE_URL = 'http://localhost:8000';
 
+type AuthHeadersProvider = () => Promise<Record<string, string>>;
+
+let authHeadersProvider: AuthHeadersProvider = async () => ({});
+
+export function setAuthHeadersProvider(provider: AuthHeadersProvider): void {
+  authHeadersProvider = provider;
+}
+
 export type Session = {
   id: string;
   title: string;
@@ -76,9 +84,10 @@ export type DocumentUploadResult = {
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const authHeaders = await authHeadersProvider();
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...authHeaders, ...options?.headers },
   });
 
   if (!response.ok) {
@@ -125,8 +134,10 @@ export async function getSessionLogs(id: string): Promise<string> {
 }
 
 export async function uploadDocument(formData: FormData): Promise<DocumentUploadResult> {
+  const authHeaders = await authHeadersProvider();
   const response = await fetch(`${API_BASE_URL}/documents/upload`, {
     method: 'POST',
+    headers: authHeaders,
     body: formData,
   });
 
@@ -142,7 +153,8 @@ export async function extractWorkflowRun(id: string): Promise<WorkflowRun> {
 }
 
 export async function deleteWorkflowRun(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/workflow-runs/${id}`, { method: 'DELETE' });
+  const authHeaders = await authHeadersProvider();
+  const response = await fetch(`${API_BASE_URL}/workflow-runs/${id}`, { method: 'DELETE', headers: authHeaders });
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
