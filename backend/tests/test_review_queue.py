@@ -24,15 +24,21 @@ def seed_review_run(tmp_path, deleted=False):
 
     with db.sqlite3.connect(db.DB_PATH) as conn:
         timestamp = "2026-01-01T00:00:00+00:00"
+        # Seed the dev workspace that "testserver" requests resolve to (subdomain "coachcw").
+        conn.execute(
+            "INSERT INTO workspaces (id, name, subdomain, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            ("workspace-dev", "coachcw", "coachcw", timestamp, timestamp),
+        )
         conn.execute(
             """
             INSERT INTO documents (
-                id, filename, content_type, size_bytes, intent, temporary_storage_path,
+                id, workspace_id, filename, content_type, size_bytes, intent, temporary_storage_path,
                 retention_expires_at, deletion_status, uploaded_at, uploader, is_permanent_archive
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "doc-1",
+                "workspace-dev",
                 "source.txt",
                 "text/plain",
                 len("Original source text"),
@@ -48,12 +54,13 @@ def seed_review_run(tmp_path, deleted=False):
         conn.execute(
             """
             INSERT INTO workflow_runs (
-                id, document_id, intent, status, extraction_status, extraction_error,
+                id, workspace_id, document_id, intent, status, extraction_status, extraction_error,
                 suggested_classification, extracted_fields, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "run-1",
+                "workspace-dev",
                 "doc-1",
                 "extract_actions",
                 WorkflowRunStatus.COMPLETED.value,

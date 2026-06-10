@@ -69,8 +69,13 @@ class ExtractionService:
         self.conn = conn
         self.provider = provider
 
-    def run(self, workflow_run_id: str) -> sqlite3.Row | None:
-        workflow_run = self.conn.execute("SELECT * FROM workflow_runs WHERE id = ?", (workflow_run_id,)).fetchone()
+    def run(self, workflow_run_id: str, workspace_id: str | None = None) -> sqlite3.Row | None:
+        if workspace_id is None:
+            workflow_run = self.conn.execute("SELECT * FROM workflow_runs WHERE id = ?", (workflow_run_id,)).fetchone()
+        else:
+            workflow_run = self.conn.execute(
+                "SELECT * FROM workflow_runs WHERE id = ? AND workspace_id = ?", (workflow_run_id, workspace_id)
+            ).fetchone()
         if workflow_run is None:
             return None
 

@@ -29,7 +29,15 @@ def test_workspace_tables_define_users_roles_and_feature_flags(monkeypatch, tmp_
     conn = sqlite3.connect(db.DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
-        assert table_columns(conn, "workspaces") == ["id", "name", "created_at", "updated_at"]
+        assert table_columns(conn, "workspaces") == [
+            "id",
+            "name",
+            "subdomain",
+            "branding_logo_url",
+            "branding_primary_color",
+            "created_at",
+            "updated_at",
+        ]
         assert table_columns(conn, "workspace_users") == [
             "id",
             "workspace_id",

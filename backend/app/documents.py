@@ -20,8 +20,10 @@ from app.schemas import (
     ReviewQueueItem,
     ReviewRunDetail,
     SourcePreview,
+    Workspace,
     WorkflowRun,
 )
+from app.workspaces import resolve_workspace
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 workflow_router = APIRouter(prefix="/workflow-runs", tags=["workflow-runs"])
@@ -51,6 +53,7 @@ def _row_to_review_queue_item(row: sqlite3.Row) -> ReviewQueueItem:
     values = dict(row)
     document = {
         "id": values["document_id"],
+        "workspace_id": values.get("workspace_id"),
         "filename": values.pop("document_filename"),
         "content_type": values.pop("document_content_type"),
         "size_bytes": values.pop("document_size_bytes"),
@@ -65,7 +68,7 @@ def _row_to_review_queue_item(row: sqlite3.Row) -> ReviewQueueItem:
     return ReviewQueueItem(**values, document=DocumentMetadata(**document))
 
 
-def _get_review_item(conn: sqlite3.Connection, workflow_run_id: str) -> ReviewQueueItem | None:
+def _get_review_item(conn: sqlite3.Connection, workflow_run_id: str, workspace_id: str) -> ReviewQueueItem | None:
     row = conn.execute(
         """
         SELECT
@@ -82,9 +85,9 @@ def _get_review_item(conn: sqlite3.Connection, workflow_run_id: str) -> ReviewQu
             documents.is_permanent_archive AS document_is_permanent_archive
         FROM workflow_runs
         JOIN documents ON documents.id = workflow_runs.document_id
-        WHERE workflow_runs.id = ?
+        WHERE workflow_runs.id = ? AND workflow_runs.workspace_id = ?
         """,
-        (workflow_run_id,),
+        (workflow_run_id, workspace_id),
     ).fetchone()
     if row is None:
         return None
@@ -112,7 +115,10 @@ def _mock_destination_record_id(workflow_run_id: str) -> str:
 
 
 @workflow_router.get("/review-queue", response_model=list[ReviewQueueItem])
-def list_review_queue(conn: sqlite3.Connection = Depends(get_connection)) -> list[ReviewQueueItem]:
+def list_review_queue(
+    conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
+) -> list[ReviewQueueItem]:
     rows = conn.execute(
         """
         SELECT
@@ -130,16 +136,21 @@ def list_review_queue(conn: sqlite3.Connection = Depends(get_connection)) -> lis
         FROM workflow_runs
         JOIN documents ON documents.id = workflow_runs.document_id
         WHERE workflow_runs.extraction_status = ? AND workflow_runs.review_status = ?
+            AND workflow_runs.workspace_id = ?
         ORDER BY workflow_runs.updated_at DESC
         """,
-        (WorkflowRunStatus.COMPLETED.value, ReviewStatus.PENDING.value),
+        (WorkflowRunStatus.COMPLETED.value, ReviewStatus.PENDING.value, workspace.id),
     ).fetchall()
     return [_row_to_review_queue_item(row) for row in rows]
 
 
 @workflow_router.get("/{workflow_run_id}/review", response_model=ReviewRunDetail)
-def get_review_run(workflow_run_id: str, conn: sqlite3.Connection = Depends(get_connection)) -> ReviewRunDetail:
-    review_item = _get_review_item(conn, workflow_run_id)
+def get_review_run(
+    workflow_run_id: str,
+    conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
+) -> ReviewRunDetail:
+    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     return ReviewRunDetail(**review_item.model_dump(), source_preview=_source_preview(review_item.document))
@@ -150,8 +161,9 @@ def update_review_fields(
     workflow_run_id: str,
     update: ReviewFieldsUpdate,
     conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
 ) -> WorkflowRun:
-    if _get_review_item(conn, workflow_run_id) is None:
+    if _get_review_item(conn, workflow_run_id, workspace.id) is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     timestamp = now_iso()
     conn.execute(
@@ -172,8 +184,11 @@ def export_workflow_run(
     workflow_run_id: str,
     format: str = "json",
     conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
 ):
-    workflow_run = conn.execute("SELECT * FROM workflow_runs WHERE id = ?", (workflow_run_id,)).fetchone()
+    workflow_run = conn.execute(
+        "SELECT * FROM workflow_runs WHERE id = ? AND workspace_id = ?", (workflow_run_id, workspace.id)
+    ).fetchone()
     if workflow_run is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     fields = row_to_workflow_run(workflow_run).extracted_fields
@@ -196,8 +211,9 @@ def approve_review_run(
     workflow_run_id: str,
     approval: ReviewApprovalRequest,
     conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
 ) -> WorkflowRun:
-    review_item = _get_review_item(conn, workflow_run_id)
+    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     timestamp = now_iso()
@@ -245,8 +261,12 @@ def approve_review_run(
 
 
 @workflow_router.delete("/{workflow_run_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_workflow_run(workflow_run_id: str, conn: sqlite3.Connection = Depends(get_connection)) -> Response:
-    review_item = _get_review_item(conn, workflow_run_id)
+def delete_workflow_run(
+    workflow_run_id: str,
+    conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
+) -> Response:
+    review_item = _get_review_item(conn, workflow_run_id, workspace.id)
     if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     if review_item.review_status == ReviewStatus.APPROVED:
@@ -264,8 +284,9 @@ def extract_workflow_run(
     workflow_run_id: str,
     conn: sqlite3.Connection = Depends(get_connection),
     provider: ExtractionProvider = Depends(get_extraction_provider),
+    workspace: Workspace = Depends(resolve_workspace),
 ) -> WorkflowRun:
-    workflow_run = ExtractionService(conn, provider).run(workflow_run_id)
+    workflow_run = ExtractionService(conn, provider).run(workflow_run_id, workspace_id=workspace.id)
     if workflow_run is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
     return row_to_workflow_run(workflow_run)
@@ -277,6 +298,7 @@ def upload_document(
     uploader: str = Form(min_length=1),
     file: UploadFile = File(),
     conn: sqlite3.Connection = Depends(get_connection),
+    workspace: Workspace = Depends(resolve_workspace),
 ) -> DocumentUploadResult:
     clean_intent = intent.strip()
     clean_uploader = uploader.strip()
@@ -300,12 +322,13 @@ def upload_document(
     conn.execute(
         """
         INSERT INTO documents (
-            id, filename, content_type, size_bytes, intent, temporary_storage_path,
+            id, workspace_id, filename, content_type, size_bytes, intent, temporary_storage_path,
             retention_expires_at, deletion_status, uploaded_at, uploader, is_permanent_archive
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             document_id,
+            workspace.id,
             _safe_filename(file.filename or "upload.bin"),
             file.content_type,
             len(contents),
@@ -320,10 +343,10 @@ def upload_document(
     )
     conn.execute(
         """
-        INSERT INTO workflow_runs (id, document_id, intent, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO workflow_runs (id, workspace_id, document_id, intent, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (workflow_run_id, document_id, clean_intent, WorkflowRunStatus.CREATED.value, timestamp, timestamp),
+        (workflow_run_id, workspace.id, document_id, clean_intent, WorkflowRunStatus.CREATED.value, timestamp, timestamp),
     )
     conn.commit()
 

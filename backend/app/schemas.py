@@ -66,8 +66,21 @@ class ActivityItem(BaseModel):
 class Workspace(BaseModel):
     id: str
     name: str = Field(min_length=1)
+    subdomain: str | None = None
+    branding_logo_url: str | None = None
+    branding_primary_color: str | None = None
     created_at: str
     updated_at: str
+
+
+class WorkspaceCreate(BaseModel):
+    name: str = Field(min_length=1)
+    subdomain: str = Field(min_length=1)
+
+
+class WorkspaceBrandingUpdate(BaseModel):
+    logo_url: str | None = None
+    primary_color: str | None = None
 
 
 class WorkspaceUser(BaseModel):
@@ -88,6 +101,7 @@ class WorkspaceFeatureFlag(BaseModel):
 
 class DocumentMetadata(BaseModel):
     id: str
+    workspace_id: str | None = None
     filename: str
     content_type: str | None
     size_bytes: int
@@ -102,6 +116,7 @@ class DocumentMetadata(BaseModel):
 
 class WorkflowRun(BaseModel):
     id: str
+    workspace_id: str | None = None
     document_id: str
     intent: str
     status: WorkflowRunStatus

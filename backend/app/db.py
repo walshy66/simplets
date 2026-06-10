@@ -55,11 +55,22 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS workspaces (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
+                subdomain TEXT,
+                branding_logo_url TEXT,
+                branding_primary_color TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
             """
         )
+        workspace_columns = {column[1] for column in conn.execute("PRAGMA table_info(workspaces)").fetchall()}
+        if "subdomain" not in workspace_columns:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN subdomain TEXT")
+        if "branding_logo_url" not in workspace_columns:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN branding_logo_url TEXT")
+        if "branding_primary_color" not in workspace_columns:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN branding_primary_color TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_workspaces_subdomain ON workspaces(subdomain)")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS workspace_users (
@@ -89,6 +100,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
+                workspace_id TEXT,
                 filename TEXT NOT NULL,
                 content_type TEXT,
                 size_bytes INTEGER NOT NULL,
@@ -106,6 +118,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS workflow_runs (
                 id TEXT PRIMARY KEY,
+                workspace_id TEXT,
                 document_id TEXT NOT NULL,
                 intent TEXT NOT NULL,
                 status TEXT NOT NULL CHECK (status IN ('created', 'running', 'completed', 'errored')),
@@ -126,7 +139,15 @@ def init_db() -> None:
             )
             """
         )
+        document_columns = {column[1] for column in conn.execute("PRAGMA table_info(documents)").fetchall()}
+        if "workspace_id" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN workspace_id TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_workspace ON documents(workspace_id)")
+
         workflow_run_columns = {column[1] for column in conn.execute("PRAGMA table_info(workflow_runs)").fetchall()}
+        if "workspace_id" not in workflow_run_columns:
+            conn.execute("ALTER TABLE workflow_runs ADD COLUMN workspace_id TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_workflow_runs_workspace ON workflow_runs(workspace_id)")
         if "extraction_status" not in workflow_run_columns:
             conn.execute("ALTER TABLE workflow_runs ADD COLUMN extraction_status TEXT")
         if "extraction_error" not in workflow_run_columns:
