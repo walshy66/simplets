@@ -31,6 +31,12 @@ export default function App() {
     window.location.hash = routeHash(next);
   }
 
+  // The canvas takes over the whole viewport; the engine's own sidebar logo
+  // navigates back to the STS dashboard once the user is at its home page.
+  if (route === 'workflows') {
+    return <WorkflowCanvasPanel fullScreen />;
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -55,7 +61,6 @@ export default function App() {
       </nav>
       {route === 'dashboard' ? <DashboardPage onNavigate={navigate} /> : null}
       {route === 'forms' ? <FormsPage /> : null}
-      {route === 'workflows' ? <WorkflowCanvasPanel /> : null}
       {route === 'review' ? <ReviewQueuePanel /> : null}
       {agentDashboardEnabled ? <AgentSessionsDashboard /> : null}
     </main>
