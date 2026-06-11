@@ -1,19 +1,19 @@
 export type PortalRoute = 'dashboard' | 'forms' | 'workflows' | 'review';
 
-const ROUTE_HASHES: Record<string, PortalRoute> = {
+const ROUTE_PATHS: Record<string, PortalRoute> = {
   '': 'dashboard',
-  '#/': 'dashboard',
-  '#/forms': 'forms',
-  '#/workflows': 'workflows',
-  '#/review': 'review',
+  '/': 'dashboard',
+  '/forms': 'forms',
+  '/workflows': 'workflows',
+  '/review': 'review',
 };
 
-export function parseRoute(hash: string): PortalRoute {
-  return ROUTE_HASHES[hash] ?? 'dashboard';
+export function parseRoute(pathname: string): PortalRoute {
+  return ROUTE_PATHS[pathname.replace(/\/+$/, '') || '/'] ?? 'dashboard';
 }
 
-export function routeHash(route: PortalRoute): string {
-  return route === 'dashboard' ? '#/' : `#/${route}`;
+export function routePath(route: PortalRoute): string {
+  return route === 'dashboard' ? '/' : `/${route}`;
 }
 
 export type AiUsage = {

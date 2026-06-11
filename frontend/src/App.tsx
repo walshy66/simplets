@@ -5,7 +5,7 @@ import FormsPage from './components/FormsPage';
 import ReviewQueuePanel from './components/ReviewQueuePanel';
 import WorkflowCanvasPanel from './components/WorkflowCanvasPanel';
 import { AuthControls } from './auth';
-import { PortalRoute, parseRoute, routeHash } from './dashboardModel';
+import { PortalRoute, parseRoute, routePath } from './dashboardModel';
 import './App.css';
 
 // Legacy coding-agent dashboard stays in the codebase but out of the product UI.
@@ -19,16 +19,17 @@ const NAV_ITEMS: { route: PortalRoute; label: string }[] = [
 ];
 
 export default function App() {
-  const [route, setRoute] = useState<PortalRoute>(() => parseRoute(window.location.hash));
+  const [route, setRoute] = useState<PortalRoute>(() => parseRoute(window.location.pathname));
 
   useEffect(() => {
-    const onHashChange = () => setRoute(parseRoute(window.location.hash));
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onPopState = () => setRoute(parseRoute(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   function navigate(next: PortalRoute) {
-    window.location.hash = routeHash(next);
+    window.history.pushState(null, '', routePath(next));
+    setRoute(next);
   }
 
   // The canvas takes over the whole viewport; the engine's own sidebar logo

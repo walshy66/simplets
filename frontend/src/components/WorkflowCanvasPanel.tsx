@@ -14,7 +14,7 @@ function useCanvasEmbedUrl() {
       .then((canvas) => {
         if (!cancelled) {
           const url = new URL(canvas.embed_url);
-          url.searchParams.set('stsHome', `${window.location.origin}/#/`);
+          url.searchParams.set('stsHome', `${window.location.origin}/`);
           setEmbedUrl(url.toString());
         }
       })
@@ -43,7 +43,7 @@ export default function WorkflowCanvasPanel({ fullScreen = false }: { fullScreen
         <section className="panel workflow-canvas-panel" aria-labelledby="workflow-canvas-title">
           <h2 id="workflow-canvas-title">Workflows</h2>
           <p>{UNAVAILABLE_NOTICE}</p>
-          <a href="#/">← Back to dashboard</a>
+          <a href="/">← Back to dashboard</a>
         </section>
       );
     }

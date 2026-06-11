@@ -5,21 +5,22 @@ import {
   formatRenewalDate,
   liveFormCount,
   parseRoute,
-  routeHash,
+  routePath,
   usagePercent,
   usageRemaining,
   usageRenewalDate,
 } from './dashboardModel.ts';
 
-// Hash routing round-trips and falls back to the dashboard.
+// Path routing round-trips and falls back to the dashboard.
 assert.equal(parseRoute(''), 'dashboard');
-assert.equal(parseRoute('#/'), 'dashboard');
-assert.equal(parseRoute('#/forms'), 'forms');
-assert.equal(parseRoute('#/workflows'), 'workflows');
-assert.equal(parseRoute('#/review'), 'review');
-assert.equal(parseRoute('#/unknown'), 'dashboard');
+assert.equal(parseRoute('/'), 'dashboard');
+assert.equal(parseRoute('/forms'), 'forms');
+assert.equal(parseRoute('/forms/'), 'forms');
+assert.equal(parseRoute('/workflows'), 'workflows');
+assert.equal(parseRoute('/review'), 'review');
+assert.equal(parseRoute('/unknown'), 'dashboard');
 for (const route of ['dashboard', 'forms', 'workflows', 'review']) {
-  assert.equal(parseRoute(routeHash(route)), route);
+  assert.equal(parseRoute(routePath(route)), route);
 }
 
 // Usage math clamps and never goes negative.
