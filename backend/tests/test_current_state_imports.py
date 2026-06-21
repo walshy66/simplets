@@ -1,0 +1,179 @@
+"""COA-297/299: generic imports create workspace-scoped conversion jobs with source retention cleanup."""
+
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from app import db
+from app.main import app
+from tests.test_current_state_maps import HOST_A, HOST_A_REVIEWER, HOST_A_SUBMITTER, HOST_B, seed_workspaces, use_temp_db
+
+
+def test_current_state_import_upload_deletes_source_and_keeps_redacted_audit_metadata(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("Client PII Export.pdf", b"demo", "application/pdf")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["workspace_id"] == "ws-a"
+    assert body["status"] == "failed"
+    assert body["file_type"] == "application/pdf"
+    assert body["uploader"] == "alice-admin"
+    assert body["filename_redacted"] == "[redacted].pdf"
+    assert len(body["filename_hash"]) == 64
+    assert "Client PII" not in response.text
+    assert "temporary_storage_path" not in body
+    assert "source_deleted_at" not in body
+    assert "source_retention_expires_at" not in body
+
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        row = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (body["id"],)).fetchone()
+    assert not Path(row["temporary_storage_path"]).exists()
+    assert row["source_deleted_at"] is not None
+    assert row["source_retention_expires_at"] is not None
+
+
+def test_current_state_imports_are_workspace_scoped_and_staff_only(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        created = client.post(
+            "/current-state-imports",
+            headers=HOST_A_REVIEWER,
+            files={"file": ("diagram.png", b"demo", "image/png")},
+        ).json()
+        own_list = client.get("/current-state-imports", headers=HOST_A_REVIEWER)
+        other_list = client.get("/current-state-imports", headers=HOST_B)
+        submitter_upload = client.post(
+            "/current-state-imports",
+            headers=HOST_A_SUBMITTER,
+            files={"file": ("diagram.png", b"demo", "image/png")},
+        )
+        other_retry = client.post(f"/current-state-imports/{created['id']}/retry", headers=HOST_B)
+
+    assert [item["id"] for item in own_list.json()] == [created["id"]]
+    assert other_list.json() == []
+    assert submitter_upload.status_code == 403
+    assert other_retry.status_code == 404
+
+
+def test_current_state_import_upload_converts_artifact_to_cleanup_required_draft_map_and_deletes_source(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("process.txt", b"Sales | Intake | Receive form | process\nCRM | Review | Update record | document\nReceive form -> Update record | handoff", "text/plain")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "succeeded"
+    assert body["result_map_id"]
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        job = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (body["id"],)).fetchone()
+        draft = conn.execute("SELECT * FROM current_state_maps WHERE id = ?", (body["result_map_id"],)).fetchone()
+    assert not Path(job["temporary_storage_path"]).exists()
+    assert job["source_deleted_at"] is not None
+    assert draft["status"] == "draft"
+    assert "AI-imported draft" in draft["title"]
+    assert {node["node_type"] for node in __import__("json").loads(draft["nodes"])} == {"process", "document"}
+    assert __import__("json").loads(draft["connectors"])[0]["label"] == "handoff"
+    assert "requires human cleanup" in draft["comments"]
+
+
+def test_current_state_import_conversion_failure_deletes_source_and_exposes_retryable_error(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("blank.txt", b"", "text/plain")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "failed"
+    assert "could not extract" in body["error_message"]
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        job = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (body["id"],)).fetchone()
+    assert not Path(job["temporary_storage_path"]).exists()
+    assert job["source_deleted_at"] is not None
+
+
+def test_current_state_import_cleanup_deletes_expired_pending_or_failed_sources_without_exposing_storage_paths(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        pending = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("pending.txt", b"demo", "text/plain")},
+        ).json()
+
+    stale_source = tmp_path / "data" / "current-state-imports" / pending["id"] / "source"
+    stale_source.parent.mkdir(parents=True, exist_ok=True)
+    stale_source.write_bytes(b"stale sensitive content")
+    expired_at = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.execute(
+            "UPDATE current_state_import_jobs SET status = ?, temporary_storage_path = ?, source_deleted_at = NULL, source_retention_expires_at = ? WHERE id = ?",
+            ("failed", str(stale_source), expired_at, pending["id"]),
+        )
+        conn.commit()
+
+    from app.current_state import cleanup_expired_import_sources
+
+    deleted = cleanup_expired_import_sources()
+
+    assert deleted == 1
+    assert not stale_source.exists()
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        row = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (pending["id"],)).fetchone()
+    assert row["source_deleted_at"] is not None
+    assert row["filename_redacted"] == "[redacted].txt"
+
+
+def test_failed_current_state_import_job_is_visible_and_retryable(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        created = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("export.csv", b"demo", "text/csv")},
+        ).json()
+        with db.sqlite3.connect(db.DB_PATH) as conn:
+            conn.execute(
+                "UPDATE current_state_import_jobs SET status = ?, error_message = ? WHERE id = ?",
+                ("failed", "unsupported format", created["id"]),
+            )
+            conn.commit()
+        failed_list = client.get("/current-state-imports", headers=HOST_A)
+        retry = client.post(f"/current-state-imports/{created['id']}/retry", headers=HOST_A)
+
+    assert failed_list.status_code == 200
+    assert failed_list.json()[0]["status"] == "failed"
+    assert failed_list.json()[0]["error_message"] == "unsupported format"
+    assert retry.status_code == 200, retry.text
+    assert retry.json()["status"] == "pending"
+    assert retry.json()["error_message"] is None

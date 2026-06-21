@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -256,3 +256,106 @@ class DocumentUploadResult(BaseModel):
 class ExtractionPreview(BaseModel):
     fields: dict[str, Any]
     suggested_classification: str | None = None
+
+
+class CurrentStateLane(BaseModel):
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+
+
+class CurrentStatePhase(BaseModel):
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+
+
+class CurrentStatePosition(BaseModel):
+    x: float = 0
+    y: float = 0
+
+
+class CurrentStateNode(BaseModel):
+    id: str = Field(min_length=1)
+    lane_id: str | None = None
+    phase_id: str | None = None
+    title: str = Field(min_length=1)
+    node_type: str = Field(min_length=1)
+    position: CurrentStatePosition | None = None
+
+
+class CurrentStateConnector(BaseModel):
+    id: str = Field(min_length=1)
+    source_node_id: str = Field(min_length=1)
+    target_node_id: str = Field(min_length=1)
+    label: str | None = None
+
+
+class CurrentStateComment(BaseModel):
+    id: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+    node_id: str | None = None
+    version_ref: str | None = None
+    author: str | None = None
+    created_at: str | None = None
+    resolved: bool = False
+
+
+class CurrentStateCommentCreate(BaseModel):
+    body: str = Field(min_length=1)
+    node_id: str | None = None
+    version_ref: str | None = None
+    resolved: bool = False
+
+
+class CurrentStateMapCreate(BaseModel):
+    title: str = Field(min_length=1)
+    version_ref: str | None = None
+    status: Literal["draft", "locked"] = "draft"
+    source_version_id: str | None = None
+    lanes: list[CurrentStateLane] = Field(default_factory=list)
+    phases: list[CurrentStatePhase] = Field(default_factory=lambda: [CurrentStatePhase(id="process", title="Process")])
+    nodes: list[CurrentStateNode] = Field(default_factory=list)
+    connectors: list[CurrentStateConnector] = Field(default_factory=list)
+    comments: list[CurrentStateComment] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_references(self) -> "CurrentStateMapCreate":
+        lane_ids = {lane.id for lane in self.lanes}
+        phase_ids = {phase.id for phase in self.phases}
+        node_ids = {node.id for node in self.nodes}
+        for node in self.nodes:
+            if node.lane_id is not None and node.lane_id not in lane_ids:
+                raise ValueError("node lane_id must reference an existing lane when provided")
+            if node.phase_id is not None and node.phase_id not in phase_ids:
+                raise ValueError("node phase_id must reference an existing phase when provided")
+        for connector in self.connectors:
+            if connector.source_node_id not in node_ids or connector.target_node_id not in node_ids:
+                raise ValueError("every connector requires valid source_node_id and target_node_id")
+        for comment in self.comments:
+            if comment.node_id is not None and comment.node_id not in node_ids:
+                raise ValueError("comment node_id must reference an existing node")
+        return self
+
+
+class CurrentStateMap(CurrentStateMapCreate):
+    id: str
+    workspace_id: str
+    created_at: str
+    updated_at: str
+
+
+class CurrentStateMapUpdate(CurrentStateMapCreate):
+    pass
+
+
+class CurrentStateImportJob(BaseModel):
+    id: str
+    workspace_id: str
+    filename_hash: str
+    filename_redacted: str
+    file_type: str
+    uploader: str
+    status: Literal["pending", "succeeded", "failed"]
+    error_message: str | None = None
+    result_map_id: str | None = None
+    created_at: str
+    updated_at: str

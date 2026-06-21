@@ -108,6 +108,99 @@ export type DocumentUploadResult = {
   workflow_run: WorkflowRun;
 };
 
+export type CurrentStateLane = {
+  id: string;
+  title: string;
+  lane_type?: 'role-team' | 'system-application' | 'external-client' | 'other';
+};
+
+export type CurrentStatePhase = {
+  id: string;
+  title: string;
+};
+
+export type CurrentStatePosition = {
+  x: number;
+  y: number;
+};
+
+export type CurrentStateNode = {
+  id: string;
+  lane_id?: string | null;
+  phase_id?: string | null;
+  title: string;
+  node_type: string;
+  position?: CurrentStatePosition | null;
+};
+
+export type CurrentStateConnector = {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  label?: string;
+};
+
+export type CurrentStateComment = {
+  id: string;
+  body: string;
+  node_id: string | null;
+  version_ref: string | null;
+  author: string | null;
+  created_at: string | null;
+  resolved: boolean;
+};
+
+export type CurrentStateCommentCreate = {
+  body: string;
+  node_id?: string | null;
+  version_ref?: string | null;
+  resolved?: boolean;
+};
+
+export type CurrentStateMap = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  version_ref: string | null;
+  status: 'draft' | 'locked';
+  source_version_id: string | null;
+  lanes: CurrentStateLane[];
+  phases: CurrentStatePhase[];
+  nodes: CurrentStateNode[];
+  connectors: CurrentStateConnector[];
+  comments: CurrentStateComment[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type CurrentStateMapCreate = {
+  title: string;
+  version_ref?: string | null;
+  status?: 'draft' | 'locked';
+  source_version_id?: string | null;
+  lanes?: CurrentStateLane[];
+  phases?: CurrentStatePhase[];
+  nodes?: CurrentStateNode[];
+  connectors?: CurrentStateConnector[];
+  comments?: CurrentStateComment[];
+};
+
+export type CurrentStateMapUpdate = Required<CurrentStateMapCreate>;
+
+export type CurrentStateImportJob = {
+  id: string;
+  workspace_id: string;
+  filename_hash: string;
+  filename_redacted: string;
+  file_type: string;
+  uploader: string;
+  status: 'pending' | 'succeeded' | 'failed';
+  error_message: string | null;
+  result_map_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const authHeaders = await authHeadersProvider();
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -190,6 +283,31 @@ export function getWorkflowCanvas(): Promise<{ embed_url: string }> {
   return request<{ embed_url: string }>('/workspaces/current/canvas');
 }
 
+export type Workspace = {
+  id: string;
+  name: string;
+  subdomain: string | null;
+  branding_logo_url: string | null;
+  branding_primary_color: string | null;
+  activepieces_project_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function getCurrentWorkspace(): Promise<Workspace> {
+  return request<Workspace>('/workspaces/current');
+}
+
+export function updateWorkspaceBranding(payload: {
+  logo_url: string | null;
+  primary_color: string | null;
+}): Promise<Workspace> {
+  return request<Workspace>('/workspaces/current/branding', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function listReviewQueue(): Promise<ReviewQueueItem[]> {
   return request<ReviewQueueItem[]>('/workflow-runs/review-queue');
 }
@@ -217,6 +335,70 @@ export function retryDestinationPush(id: string, reviewer: string): Promise<Appr
     method: 'POST',
     body: JSON.stringify({ reviewer, fields_reviewed: true }),
   });
+}
+
+export function listCurrentStateMaps(): Promise<CurrentStateMap[]> {
+  return request<CurrentStateMap[]>('/current-state-maps');
+}
+
+export function getCurrentStateMap(id: string): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>(`/current-state-maps/${id}`);
+}
+
+export function createCurrentStateMap(payload: CurrentStateMapCreate): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>('/current-state-maps', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCurrentStateMap(id: string, payload: CurrentStateMapUpdate): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>(`/current-state-maps/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listCurrentStateMapVersions(id: string): Promise<CurrentStateMap[]> {
+  return request<CurrentStateMap[]>(`/current-state-maps/${id}/versions`);
+}
+
+export function duplicateCurrentStateMap(id: string): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>(`/current-state-maps/${id}/duplicate`, { method: 'POST' });
+}
+
+export function addCurrentStateMapComment(id: string, payload: CurrentStateCommentCreate): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>(`/current-state-maps/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function acceptCurrentStateMap(id: string): Promise<CurrentStateMap> {
+  return request<CurrentStateMap>(`/current-state-maps/${id}/accept`, { method: 'POST' });
+}
+
+export function listCurrentStateImports(): Promise<CurrentStateImportJob[]> {
+  return request<CurrentStateImportJob[]>('/current-state-imports');
+}
+
+export async function uploadCurrentStateImport(file: File): Promise<CurrentStateImportJob> {
+  const authHeaders = await authHeadersProvider();
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/current-state-imports`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  return response.json() as Promise<CurrentStateImportJob>;
+}
+
+export function retryCurrentStateImport(id: string): Promise<CurrentStateImportJob> {
+  return request<CurrentStateImportJob>(`/current-state-imports/${id}/retry`, { method: 'POST' });
 }
 
 export async function submitIntakeForm(formData: FormData): Promise<DocumentUploadResult> {

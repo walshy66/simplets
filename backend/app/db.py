@@ -185,6 +185,60 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS current_state_maps (
+                id TEXT PRIMARY KEY,
+                workspace_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                version_ref TEXT,
+                status TEXT NOT NULL CHECK (status IN ('draft', 'locked')) DEFAULT 'draft',
+                source_version_id TEXT,
+                lanes TEXT NOT NULL,
+                phases TEXT NOT NULL,
+                nodes TEXT NOT NULL,
+                connectors TEXT NOT NULL,
+                comments TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+            )
+            """
+        )
+        current_state_map_columns = {column[1] for column in conn.execute("PRAGMA table_info(current_state_maps)").fetchall()}
+        if "status" not in current_state_map_columns:
+            conn.execute("ALTER TABLE current_state_maps ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'")
+        if "source_version_id" not in current_state_map_columns:
+            conn.execute("ALTER TABLE current_state_maps ADD COLUMN source_version_id TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_current_state_maps_workspace ON current_state_maps(workspace_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_current_state_maps_source ON current_state_maps(source_version_id)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS current_state_import_jobs (
+                id TEXT PRIMARY KEY,
+                workspace_id TEXT NOT NULL,
+                filename_hash TEXT NOT NULL,
+                filename_redacted TEXT NOT NULL,
+                file_type TEXT NOT NULL,
+                uploader TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed')),
+                error_message TEXT,
+                temporary_storage_path TEXT NOT NULL,
+                source_deleted_at TEXT,
+                source_retention_expires_at TEXT,
+                result_map_id TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+            )
+            """
+        )
+        current_state_import_columns = {column[1] for column in conn.execute("PRAGMA table_info(current_state_import_jobs)").fetchall()}
+        if "result_map_id" not in current_state_import_columns:
+            conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN result_map_id TEXT")
+        if "source_retention_expires_at" not in current_state_import_columns:
+            conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN source_retention_expires_at TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_current_state_import_jobs_workspace ON current_state_import_jobs(workspace_id)")
 
         document_columns = {column[1] for column in conn.execute("PRAGMA table_info(documents)").fetchall()}
         if "workspace_id" not in document_columns:

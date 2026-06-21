@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Combined B — Sidebar + Clean White Hero (Desktop view)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; }
+
+  aside { width: 220px; border-right: 1px solid var(--border); padding: 24px 14px; flex-shrink: 0; }
+  .logo { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; padding: 0 12px 24px; }
+  .logo-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  nav a { display: block; padding: 9px 12px; border-radius: 8px; color: var(--navy); text-decoration: none; font-size: 14px; margin-bottom: 4px; }
+  nav a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  nav a:hover { background: rgba(32,180,201,0.05); }
+
+  main { flex: 1; padding: 40px 36px 64px; min-width: 0; }
+
+  /* Hero: white card, mint left edge, illustration right */
+  .hero { border: 1px solid var(--border); border-left: 4px solid var(--mint); border-radius: 16px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(0,0,0,.05); display: flex; gap: 28px; align-items: center; }
+  .hero-main { flex: 1; min-width: 0; }
+  .hero h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+  .hero-sub { color: var(--muted); font-size: 13px; margin-top: 5px; }
+  .actions { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .action { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; text-decoration: none; color: var(--navy); }
+  .action:hover { background: rgba(32,180,201,0.05); border-color: var(--cyan); }
+  .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--amber); flex-shrink: 0; }
+  .action-title { font-size: 13.5px; font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .when { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+  .go { color: var(--cyan); font-weight: 600; font-size: 13px; flex-shrink: 0; }
+  .hero-art { flex-shrink: 0; }
+
+  /* Row: tiles left third, queue rest */
+  .row { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-top: 24px; align-items: start; }
+  .tiles { display: flex; flex-direction: column; gap: 14px; }
+  .tile { border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .tile:hover { border-color: var(--cyan); }
+  .tile-top { display: flex; align-items: center; gap: 10px; }
+  .tile-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+  .tile-icon svg { width: 15px; height: 15px; }
+  .ti-cyan { background: rgba(32,180,201,.12); } .ti-cyan svg { stroke: var(--cyan); }
+  .ti-mint { background: rgba(21,245,186,.16); } .ti-mint svg { stroke: #0BA77E; }
+  .ti-amber { background: rgba(242,184,75,.18); } .ti-amber svg { stroke: #B97E15; }
+  .ti-navy { background: rgba(21,10,50,.07); } .ti-navy svg { stroke: var(--navy); }
+  .tile h3 { font-size: 13px; font-weight: 600; }
+  .tile .n { font-family: 'JetBrains Mono', monospace; font-size: 24px; margin-top: 10px; }
+  .tile small { font-size: 12px; color: var(--muted); }
+  .mini-bar { height: 6px; background: #F3F4F6; border-radius: 99px; overflow: hidden; margin-top: 12px; }
+  .mini-fill { height: 100%; width: 42%; background: var(--cyan); }
+
+  .panel { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); overflow: hidden; }
+  .panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { font-size: 14.5px; font-weight: 600; }
+  .panel-head a { font-size: 13px; color: var(--cyan); text-decoration: none; font-weight: 500; }
+  .qrow { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .qrow:last-child { border-bottom: none; }
+  .qrow:hover { background: rgba(32,180,201,0.05); }
+  .qavatar { width: 34px; height: 34px; border-radius: 10px; background: rgba(32,180,201,.12); color: #0E7D8E; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .qbody { flex: 1; min-width: 0; }
+  .qtitle { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qmeta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .tag { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; }
+  .tag-pending { background: rgba(242,184,75,.18); color: #92600A; }
+  .tag-ok { background: rgba(21,245,186,.18); color: #067857; }
+  .btn-sm { font-family: inherit; font-size: 12.5px; font-weight: 600; border: none; border-radius: 8px; padding: 7px 13px; cursor: pointer; background: var(--navy); color: #fff; flex-shrink: 0; }
+  .btn-sm:hover { background: #24134F; }
+
+  @media (max-width: 900px) {
+    aside { display: none; }
+    main { padding: 24px 18px 48px; }
+    .hero { flex-direction: column; align-items: stretch; }
+    .hero-art { align-self: center; order: -1; }
+    .row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="logo"><span class="logo-dot">S</span> SimpleTS</div>
+    <nav>
+      <a class="active" href="#">Dashboard</a>
+      <a href="#">Forms</a>
+      <a href="#">Workflows</a>
+      <a href="#">Review queue</a>
+      <a href="#">Documents</a>
+      <a href="#">Clients</a>
+      <a href="#">Settings</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="hero">
+      <div class="hero-main">
+        <h1>Two things to handle</h1>
+        <p class="hero-sub">Unhandled items from the last 12 hours</p>
+        <div class="actions">
+          <a class="action" href="#">
+            <span class="dot"></span>
+            <span class="action-title">Riverside Physio — client intake submitted</span>
+            <span class="when">2h ago</span>
+            <span class="go">Review →</span>
+          </a>
+          <a class="action" href="#">
+            <span class="dot"></span>
+            <span class="action-title">Bright Spark Tutors — onboarding form submitted</span>
+            <span class="when">7h ago</span>
+            <span class="go">Review →</span>
+          </a>
+        </div>
+      </div>
+      <div class="hero-art">
+        <!-- Flat illustration: tidy checklist with a friendly hand ticking items -->
+        <svg width="150" height="130" viewBox="0 0 160 140" fill="none">
+          <ellipse cx="80" cy="128" rx="62" ry="7" fill="#E5E7EB" opacity=".6"/>
+          <rect x="38" y="14" width="84" height="106" rx="10" fill="#fff" stroke="#E5E7EB" stroke-width="2.5"/>
+          <rect x="52" y="30" width="14" height="14" rx="4" fill="#15F5BA"/>
+          <path d="M55.5 37l3 3 5-6" stroke="#150A32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="74" y="34" width="34" height="4" rx="2" fill="#150A32" opacity=".75"/>
+          <rect x="52" y="56" width="14" height="14" rx="4" fill="#15F5BA"/>
+          <path d="M55.5 63l3 3 5-6" stroke="#150A32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="74" y="60" width="28" height="4" rx="2" fill="#150A32" opacity=".75"/>
+          <rect x="52" y="82" width="14" height="14" rx="4" fill="#fff" stroke="#F2B84B" stroke-width="2.5"/>
+          <rect x="74" y="86" width="32" height="4" rx="2" fill="#E5E7EB"/>
+          <circle cx="128" cy="98" r="11" fill="#F6C7A8"/>
+          <rect x="118" y="106" width="20" height="14" rx="7" fill="#20B4C9"/>
+          <circle cx="20" cy="36" r="4" fill="#20B4C9"/>
+          <circle cx="142" cy="20" r="3.5" fill="#F2B84B"/>
+          <circle cx="14" cy="86" r="3" fill="#15F5BA"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-top"><span class="tile-icon ti-cyan"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><h3>Forms</h3></div>
+          <div class="n">4</div><small>live intake forms</small>
+        </div>
+        <div class="tile">
+          <div class="tile-top"><span class="tile-icon ti-navy"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H15a3 3 0 0 1 3 3v6.5"/></svg></span><h3>Workflows</h3></div>
+          <div class="n">3</div><small>all healthy</small>
+        </div>
+        <div class="tile">
+          <div class="tile-top"><span class="tile-icon ti-amber"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><h3>Review queue</h3></div>
+          <div class="n">2</div><small>waiting for review</small>
+        </div>
+        <div class="tile">
+          <div class="tile-top"><span class="tile-icon ti-mint"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span><h3>AI usage</h3></div>
+          <div class="n">42%</div><small>420 of 1,000 · renews 1 Jul</small>
+          <div class="mini-bar"><div class="mini-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Review queue</h2><a href="#">View all →</a></div>
+        <div class="qrow">
+          <span class="qavatar">RP</span>
+          <div class="qbody"><div class="qtitle">Riverside Physio</div><div class="qmeta">Client intake · 2h ago</div></div>
+          <span class="tag tag-pending">Pending</span>
+          <button class="btn-sm">Review</button>
+        </div>
+        <div class="qrow">
+          <span class="qavatar">BT</span>
+          <div class="qbody"><div class="qtitle">Bright Spark Tutors</div><div class="qmeta">Onboarding · 7h ago</div></div>
+          <span class="tag tag-pending">Pending</span>
+          <button class="btn-sm">Review</button>
+        </div>
+        <div class="qrow">
+          <span class="qavatar">HC</span>
+          <div class="qbody"><div class="qtitle">Harbour Lane Café</div><div class="qmeta">Onboarding · 1d ago</div></div>
+          <span class="tag tag-ok">Approved</span>
+        </div>
+        <div class="qrow">
+          <span class="qavatar">GG</span>
+          <div class="qbody"><div class="qtitle">GreenLeaf Gardens</div><div class="qmeta">Client intake · 2d ago</div></div>
+          <span class="tag tag-ok">Approved</span>
+        </div>
+        <div class="qrow">
+          <span class="qavatar">CD</span>
+          <div class="qbody"><div class="qtitle">Cove Street Dental</div><div class="qmeta">Client intake · 3d ago</div></div>
+          <span class="tag tag-ok">Approved</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

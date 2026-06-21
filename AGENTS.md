@@ -120,6 +120,8 @@ Bug fixes affecting auth, data safety, deletion, connector execution, tenant iso
 
 When product or architecture behavior changes, update relevant docs in `docs/` and/or `constitution.md`.
 
+Follow `docs/branding/brand-kit.md` as the canonical developer-facing brand contract. Simple Technology Solutions branding is the binding default for platform-owned experiences; workspace/client branding may override only in explicitly tenant-branded contexts.
+
 Do not reintroduce the obsolete local AI coding-agent dashboard direction.
 
 # DOX framework

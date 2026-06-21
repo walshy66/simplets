@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 5 — Overview Split (today + activity)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; }
+
+  aside { width: 220px; border-right: 1px solid var(--border); padding: 24px 14px; flex-shrink: 0; }
+  .logo { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; padding: 0 12px 24px; }
+  .logo-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  nav a { display: block; padding: 9px 12px; border-radius: 8px; color: var(--navy); text-decoration: none; font-size: 14px; margin-bottom: 4px; }
+  nav a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  nav a:hover { background: rgba(32,180,201,0.05); }
+
+  main { flex: 1; padding: 44px 40px 64px; min-width: 0; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .date { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 28px; }
+  .stat { border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .stat .n { font-family: 'JetBrains Mono', monospace; font-size: 26px; }
+  .stat .l { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .stat .delta { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .up { background: rgba(21,245,186,.18); color: #067857; }
+  .warn { background: rgba(242,184,75,.18); color: #92600A; }
+  .flat { background: rgba(32,180,201,.12); color: #0E7D8E; }
+
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; margin-top: 28px; align-items: start; }
+  .panel { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .panel-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { font-size: 14.5px; font-weight: 600; }
+  .panel-head a { font-size: 13px; color: var(--cyan); text-decoration: none; font-weight: 500; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 12px 22px; border-bottom: 1px solid var(--border); }
+  td { padding: 13px 22px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(32,180,201,0.05); }
+  .tag { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .tag-pending { background: rgba(242,184,75,.18); color: #92600A; }
+  .tag-ok { background: rgba(21,245,186,.18); color: #067857; }
+
+  .feed { padding: 8px 0; }
+  .feed-item { display: flex; gap: 14px; padding: 13px 22px; }
+  .feed-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: grid; place-items: center; }
+  .feed-icon svg { width: 15px; height: 15px; }
+  .fi-mint { background: rgba(21,245,186,.16); } .fi-mint svg { stroke: #0BA77E; }
+  .fi-cyan { background: rgba(32,180,201,.12); } .fi-cyan svg { stroke: var(--cyan); }
+  .feed-body { font-size: 13.5px; line-height: 1.45; }
+  .feed-body small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+
+  .usage-mini { padding: 18px 22px; }
+  .usage-mini .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .bar { height: 7px; background: #F3F4F6; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 42%; background: linear-gradient(90deg, var(--cyan), var(--mint)); }
+
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  @media (max-width: 720px) { aside { display: none; } main { padding: 28px 18px 48px; } th:nth-child(3), td:nth-child(3) { display: none; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="logo"><span class="logo-dot">S</span> SimpleTS</div>
+    <nav>
+      <a class="active" href="#">Dashboard</a>
+      <a href="#">Forms</a>
+      <a href="#">Workflows</a>
+      <a href="#">Review queue</a>
+      <a href="#">Documents</a>
+      <a href="#">Clients</a>
+      <a href="#">Settings</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="page-head">
+      <h1>Dashboard</h1>
+      <span class="date">Saturday, 13 June 2026</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n">4</div><div class="l">Live forms</div><span class="delta up">+1 this week</span></div>
+      <div class="stat"><div class="n">3</div><div class="l">Active workflows</div><span class="delta flat">All healthy</span></div>
+      <div class="stat"><div class="n">2</div><div class="l">Awaiting review</div><span class="delta warn">Needs you</span></div>
+      <div class="stat"><div class="n">12</div><div class="l">Completed this week</div><span class="delta up">+4 vs last week</span></div>
+    </div>
+
+    <div class="cols">
+      <div class="panel">
+        <div class="panel-head"><h2>Review queue</h2><a href="#">View all →</a></div>
+        <table>
+          <thead><tr><th>Client</th><th>Form</th><th>Received</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Riverside Physio</td><td>Client intake</td><td>2h ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+            <tr><td>Harbour Lane Café</td><td>Onboarding</td><td>1d ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+            <tr><td>GreenLeaf Gardens</td><td>Client intake</td><td>2d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+            <tr><td>Bright Spark Tutors</td><td>Onboarding</td><td>3d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="panel-head"><h2>Recent activity</h2></div>
+          <div class="feed">
+            <div class="feed-item">
+              <div class="feed-icon fi-mint"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+              <div class="feed-body">Onboarding workflow completed for GreenLeaf Gardens<small>Today · 9:14 am</small></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon fi-cyan"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg></div>
+              <div class="feed-body">Intake form shared with 2 new clients<small>Yesterday · 4:32 pm</small></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-icon fi-mint"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+              <div class="feed-body">Document pack filed for Riverside Physio<small>Yesterday · 11:05 am</small></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top: 24px;">
+          <div class="panel-head"><h2>AI usage</h2></div>
+          <div class="usage-mini">
+            <div class="row"><span>420 of 1,000 extractions</span><span>42%</span></div>
+            <div class="bar"><div class="bar-fill"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

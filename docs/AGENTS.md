@@ -25,4 +25,4 @@ Review affected docs for contradictions with `constitution.md` and `README.md`.
 
 ## Child DOX Index
 
-No child AGENTS.md files yet.
+- `branding/AGENTS.md` — Simple Technology Solutions brand kit, source logo/background assets, and generated app/public brand asset inventory.

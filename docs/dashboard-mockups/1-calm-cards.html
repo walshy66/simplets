@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 1 — Calm Cards (Notion-style)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #FFFFFF; color: var(--navy); }
+  .layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; }
+
+  /* Sidebar */
+  aside { width: 232px; border-right: 1px solid var(--border); padding: 24px 16px; flex-shrink: 0; }
+  .logo { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; padding: 0 12px 24px; }
+  .logo-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  nav a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--navy); text-decoration: none; font-size: 14px; margin-bottom: 4px; }
+  nav a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  nav a:hover { background: rgba(32,180,201,0.05); }
+  nav svg { width: 17px; height: 17px; stroke: var(--navy); opacity: .75; }
+
+  /* Main */
+  main { flex: 1; padding: 48px 48px 64px; min-width: 0; }
+  .greeting { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin-top: 8px; font-size: 15px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; margin-top: 40px; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.05); text-align: left; cursor: pointer; transition: border-color .15s; }
+  .card:hover { border-color: var(--cyan); }
+  .card-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 16px; }
+  .card-icon svg { width: 19px; height: 19px; }
+  .ic-cyan { background: rgba(32,180,201,.12); } .ic-cyan svg { stroke: var(--cyan); }
+  .ic-mint { background: rgba(21,245,186,.16); } .ic-mint svg { stroke: #0BA77E; }
+  .ic-navy { background: rgba(21,10,50,.07); } .ic-navy svg { stroke: var(--navy); }
+  .card h3 { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .stat { font-family: 'JetBrains Mono', monospace; font-size: 34px; font-weight: 500; margin: 8px 0 4px; }
+  .card p { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+  .card a { display: inline-block; margin-top: 14px; font-size: 13.5px; color: var(--cyan); font-weight: 500; text-decoration: none; }
+
+  .usage { margin-top: 32px; border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .usage-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .usage h3 { font-size: 14px; font-weight: 600; }
+  .usage .mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); }
+  .bar { height: 8px; background: #F3F4F6; border-radius: 99px; margin-top: 16px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 42%; background: var(--cyan); border-radius: 99px; }
+  .usage small { display: block; margin-top: 12px; color: var(--muted); font-size: 12.5px; }
+
+  @media (max-width: 760px) {
+    aside { display: none; }
+    main { padding: 32px 20px 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="logo"><span class="logo-dot">S</span> SimpleTS</div>
+    <nav>
+      <a class="active" href="#"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> Dashboard</a>
+      <a href="#"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg> Forms</a>
+      <a href="#"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H15a3 3 0 0 1 3 3v6.5"/></svg> Workflows</a>
+      <a href="#"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14l-3-3"/></svg> Review queue</a>
+      <a href="#"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h0a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h0a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg> Settings</a>
+    </nav>
+  </aside>
+  <main>
+    <h1 class="greeting">Good morning, Cameron 👋</h1>
+    <p class="subtitle">Here's how your workspace looks today. Everything is running smoothly.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon ic-cyan"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
+        <h3>Forms</h3>
+        <div class="stat">4</div>
+        <p>live intake forms for your clients</p>
+        <a href="#">View and share →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon ic-navy"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H15a3 3 0 0 1 3 3v6.5"/></svg></div>
+        <h3>Workflows</h3>
+        <div class="stat">3</div>
+        <p>workflows moving your client data</p>
+        <a href="#">Open the canvas →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon ic-mint"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14l-3-3"/></svg></div>
+        <h3>Review queue</h3>
+        <div class="stat">2</div>
+        <p>submissions waiting for your review</p>
+        <a href="#">Review and approve →</a>
+      </div>
+    </div>
+
+    <div class="usage">
+      <div class="usage-head">
+        <h3>AI usage this month</h3>
+        <span class="mono">420 / 1,000 extractions</span>
+      </div>
+      <div class="bar"><div class="bar-fill"></div></div>
+      <small>42% used · 580 remaining · limit renews 1 July 2026</small>
+    </div>
+  </main>
+</div>
+</body>
+</html>

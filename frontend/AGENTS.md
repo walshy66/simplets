@@ -12,7 +12,9 @@ Owns frontend source in `src/`, Vite/TypeScript config, frontend Docker/Fly file
 
 - Do not infer, repair, or bypass backend authority for auth, workspace scope, approval, deletion, connector, or workflow state.
 - Surface distribution and connector failures visibly.
-- Keep UI white-labeled as SimpleTS; do not reintroduce obsolete coding-agent dashboard direction.
+- Keep the SimpleTS product name, but use `docs/branding/brand-kit.md` as the canonical Simple Technology Solutions (STS) platform visual brand: STS logo, Midnight Indigo/Digital Teal/Electric Mint palette, Montserrat headings, and Calibri-first body text.
+- Preserve a clear seam for future workspace/client theme overrides; tenant logos may override STS only in workspace-branded contexts.
+- Do not reintroduce obsolete coding-agent dashboard direction.
 - Do not create permanent archive UX for client PII or submitted field values.
 
 ## Work Guidance
@@ -20,6 +22,7 @@ Owns frontend source in `src/`, Vite/TypeScript config, frontend Docker/Fly file
 - Keep behavior in testable model modules where possible.
 - Use synthetic/demo data only.
 - Preserve accessibility and responsive behavior when changing screens.
+- Form editor work starts as a mock-backed, real-route prototype: template-first creation, vertical canvas, connector chips/mapping review, form-level confirmation, and draft-to-publish UX before backend persistence.
 
 ## Verification
 

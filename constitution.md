@@ -109,7 +109,13 @@ The frontend MUST NOT infer, repair, bypass, or silently override backend author
 
 ---
 
-### VI. Activepieces Is the Workflow Engine Boundary
+### VI. STS Brand Hierarchy
+
+Simple Technology Solutions branding is the authoritative default for platform-owned experiences. Workspace/client branding may override only in tenant-branded contexts and must not weaken platform authority, data safety, approval, retention, or workspace isolation rules.
+
+---
+
+### VII. Activepieces Is the Workflow Engine Boundary
 
 Activepieces provides the workflow canvas, connector model, and execution foundation.
 
@@ -129,7 +135,7 @@ Activepieces branding MUST NOT be visible to subscribers or end-clients in the S
 
 ---
 
-### VII. OAuth, Secrets & Connector Safety (NON-NEGOTIABLE)
+### VIII. OAuth, Secrets & Connector Safety (NON-NEGOTIABLE)
 
 Connector credentials are security-critical infrastructure.
 
@@ -145,7 +151,7 @@ Secrets MUST stay out of source control.
 
 ---
 
-### VIII. Test-First Reliability
+### IX. Test-First Reliability
 
 New behavior SHOULD begin with failing automated tests. For high-risk platform behavior, tests are mandatory before merge.
 
@@ -165,7 +171,7 @@ Bug fixes MUST include regression tests when the bug affected data safety, autho
 
 ---
 
-### IX. Observability & Operational Recovery
+### X. Observability & Operational Recovery
 
 Data movement must be observable, auditable, and recoverable.
 
@@ -183,7 +189,7 @@ Logs MUST NOT include raw PII, submitted field values, uploaded document content
 
 ---
 
-### X. Incremental, Releasable Slices
+### XI. Incremental, Releasable Slices
 
 Work MUST be broken into independently valuable slices that can be tested and demonstrated.
 

@@ -9,6 +9,7 @@ import {
   ReviewRunDetail,
   updateReviewFields,
 } from '../api';
+import ReviewQueueRow from './ReviewQueueRow';
 import {
   canApproveReviewRun,
   canSaveExtractedFields,
@@ -141,22 +142,20 @@ export default function ReviewQueuePanel() {
       <div className="review-queue-layout">
         <div>
           <h3>Pending workflow runs</h3>
-          {queue.length === 0 ? <p>No pending workflow runs.</p> : null}
-          <div className="review-run-list">
-            {queue.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="review-run-card"
-                onClick={() => openRun(item.id)}
-                aria-pressed={selected?.id === item.id}
-              >
-                <strong>{item.document.filename}</strong>
-                <span>{item.suggested_classification || item.intent}</span>
-                <small>Uploaded by {item.document.uploader}</small>
-              </button>
-            ))}
-          </div>
+          {queue.length === 0 ? (
+            <p>No pending workflow runs.</p>
+          ) : (
+            <div className="dash-qlist">
+              {queue.map((item) => (
+                <ReviewQueueRow
+                  key={item.id}
+                  item={item}
+                  onReview={openRun}
+                  selected={selected?.id === item.id}
+                />
+              ))}
+            </div>
+          )}
         </div>
         <div className="review-detail">
           <h3>Source preview and extracted data</h3>

@@ -1,0 +1,484 @@
+import hashlib
+import json
+import sqlite3
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+
+from app import db
+from app.auth import WorkspaceActor, require_any_staff, require_reviewer, require_workspace_role
+from app.db import get_connection
+from app.models import WorkspaceRole
+from app.schemas import CurrentStateComment, CurrentStateCommentCreate, CurrentStateImportJob, CurrentStateMap, CurrentStateMapCreate, CurrentStateMapUpdate
+from app.tenancy import now_iso
+
+router = APIRouter(prefix="/current-state-maps", tags=["current-state-maps"])
+import_router = APIRouter(prefix="/current-state-imports", tags=["current-state-imports"])
+require_current_state_editor = require_workspace_role(WorkspaceRole.ADMIN, WorkspaceRole.OPERATOR)
+IMPORT_SOURCE_RETENTION_HOURS = 24
+
+
+def _json_dump(value: object) -> str:
+    return json.dumps(value, separators=(",", ":"))
+
+
+def _row_to_map(row: sqlite3.Row) -> CurrentStateMap:
+    values = dict(row)
+    for field in ("lanes", "phases", "nodes", "connectors", "comments"):
+        values[field] = json.loads(values[field])
+    return CurrentStateMap(**values)
+
+
+def _row_to_import_job(row: sqlite3.Row) -> CurrentStateImportJob:
+    values = dict(row)
+    values.pop("temporary_storage_path", None)
+    values.pop("source_deleted_at", None)
+    values.pop("source_retention_expires_at", None)
+    return CurrentStateImportJob(**values)
+
+
+def _redacted_filename(filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    return f"[redacted]{suffix}" if suffix else "[redacted]"
+
+
+def _get_workspace_import_job(job_id: str, workspace_id: str, conn: sqlite3.Connection) -> sqlite3.Row:
+    row = conn.execute(
+        "SELECT * FROM current_state_import_jobs WHERE id = ? AND workspace_id = ?",
+        (job_id, workspace_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="current-state import job not found")
+    return row
+
+
+def _delete_import_source(row: sqlite3.Row, conn: sqlite3.Connection, timestamp: str) -> bool:
+    storage_path = Path(row["temporary_storage_path"])
+    deleted = False
+    if storage_path.exists():
+        storage_path.unlink()
+        deleted = True
+    conn.execute(
+        "UPDATE current_state_import_jobs SET source_deleted_at = ?, updated_at = ? WHERE id = ?",
+        (timestamp, timestamp, row["id"]),
+    )
+    return deleted
+
+
+def cleanup_expired_import_sources(now: datetime | None = None, conn: sqlite3.Connection | None = None) -> int:
+    """Delete expired import source files while retaining only redacted job metadata."""
+    owns_connection = conn is None
+    if conn is None:
+        conn = sqlite3.connect(db.DB_PATH)
+        conn.row_factory = sqlite3.Row
+    cutoff = (now or datetime.now(UTC)).isoformat()
+    rows = conn.execute(
+        """
+        SELECT * FROM current_state_import_jobs
+        WHERE source_deleted_at IS NULL
+          AND source_retention_expires_at IS NOT NULL
+          AND source_retention_expires_at <= ?
+        """,
+        (cutoff,),
+    ).fetchall()
+    deleted_count = 0
+    timestamp = now_iso()
+    for row in rows:
+        if _delete_import_source(row, conn, timestamp):
+            deleted_count += 1
+    if owns_connection:
+        conn.commit()
+        conn.close()
+    return deleted_count
+
+
+def _slug(value: str) -> str:
+    return "-".join(part for part in "".join(char.lower() if char.isalnum() else " " for char in value).split() if part) or "item"
+
+
+def _convert_import_to_draft_map(job_id: str, workspace_id: str, contents: bytes, conn: sqlite3.Connection) -> tuple[str | None, str | None]:
+    text = contents.decode("utf-8", errors="ignore")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return None, "could not extract process-map steps from uploaded artifact"
+
+    allowed_shapes = {"start", "end", "decision", "process", "document"}
+    lanes: dict[str, dict[str, str]] = {}
+    phases: dict[str, dict[str, str]] = {}
+    nodes: list[dict[str, str]] = []
+    connectors: list[dict[str, str | None]] = []
+    title_to_id: dict[str, str] = {}
+
+    for index, line in enumerate(lines, start=1):
+        if "->" in line:
+            left, _, right = line.partition("->")
+            target, _, label = right.partition("|")
+            source_id = title_to_id.get(left.strip())
+            target_id = title_to_id.get(target.strip())
+            if source_id and target_id:
+                connectors.append({"id": f"flow-{index}", "source_node_id": source_id, "target_node_id": target_id, "label": label.strip() or None})
+            continue
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) < 3:
+            continue
+        lane_title, phase_title, node_title = parts[:3]
+        node_type = parts[3].lower() if len(parts) > 3 and parts[3].lower() in allowed_shapes else "process"
+        lane_id = _slug(lane_title)
+        phase_id = _slug(phase_title)
+        node_id = _slug(node_title)
+        lanes.setdefault(lane_id, {"id": lane_id, "title": lane_title})
+        phases.setdefault(phase_id, {"id": phase_id, "title": phase_title})
+        title_to_id[node_title] = node_id
+        nodes.append({"id": node_id, "lane_id": lane_id, "phase_id": phase_id, "title": node_title, "node_type": node_type, "position": {"x": (index - 1) * 220, "y": 120}})
+
+    if not nodes:
+        return None, "could not extract process-map steps from uploaded artifact"
+
+    map_id = str(uuid4())
+    timestamp = now_iso()
+    comments = [{
+        "id": f"cleanup-{job_id}",
+        "body": "AI-imported draft requires human cleanup before use; conversion may be incomplete or inaccurate.",
+        "node_id": None,
+        "version_ref": "ai-import-draft",
+        "author": "system",
+        "created_at": timestamp,
+        "resolved": False,
+    }]
+    conn.execute(
+        """
+        INSERT INTO current_state_maps (
+            id, workspace_id, title, version_ref, status, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            map_id,
+            workspace_id,
+            "AI-imported draft current-state map",
+            "ai-import-draft",
+            "draft",
+            None,
+            _json_dump(list(lanes.values())),
+            _json_dump(list(phases.values())),
+            _json_dump(nodes),
+            _json_dump(connectors),
+            _json_dump(comments),
+            timestamp,
+            timestamp,
+        ),
+    )
+    return map_id, None
+
+
+def _get_workspace_map(map_id: str, workspace_id: str, conn: sqlite3.Connection) -> sqlite3.Row:
+    row = conn.execute(
+        "SELECT * FROM current_state_maps WHERE id = ? AND workspace_id = ?",
+        (map_id, workspace_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="current-state map not found")
+    return row
+
+
+def _version_family_ids(map_id: str, workspace_id: str, conn: sqlite3.Connection) -> set[str]:
+    family = {map_id}
+    changed = True
+    while changed:
+        changed = False
+        placeholders = ",".join("?" for _ in family)
+        rows = conn.execute(
+            f"SELECT id, source_version_id FROM current_state_maps WHERE workspace_id = ? AND (id IN ({placeholders}) OR source_version_id IN ({placeholders}))",
+            (workspace_id, *family, *family),
+        ).fetchall()
+        for row in rows:
+            for candidate in (row["id"], row["source_version_id"]):
+                if candidate and candidate not in family:
+                    family.add(candidate)
+                    changed = True
+    return family
+
+
+@import_router.post("", response_model=CurrentStateImportJob, status_code=status.HTTP_201_CREATED)
+def upload_current_state_import(
+    file: UploadFile = File(),
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateImportJob:
+    job_id = str(uuid4())
+    timestamp = now_iso()
+    filename = file.filename or "import.bin"
+    file_type = file.content_type or "application/octet-stream"
+    source_retention_expires_at = (datetime.now(UTC) + timedelta(hours=IMPORT_SOURCE_RETENTION_HOURS)).isoformat()
+    contents = file.file.read()
+    upload_dir = db.DATA_DIR / "current-state-imports" / job_id
+    upload_dir.mkdir(parents=True, exist_ok=False)
+    storage_path = upload_dir / "source"
+    storage_path.write_bytes(contents)
+    conn.execute(
+        """
+        INSERT INTO current_state_import_jobs (
+            id, workspace_id, filename_hash, filename_redacted, file_type, uploader, status,
+            error_message, temporary_storage_path, source_deleted_at, source_retention_expires_at, result_map_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            job_id,
+            actor.workspace.id,
+            hashlib.sha256(filename.encode("utf-8")).hexdigest(),
+            _redacted_filename(filename),
+            file_type,
+            actor.user.user_id,
+            "pending",
+            None,
+            str(storage_path),
+            None,
+            source_retention_expires_at,
+            None,
+            timestamp,
+            timestamp,
+        ),
+    )
+    row = _get_workspace_import_job(job_id, actor.workspace.id, conn)
+    map_id, error_message = _convert_import_to_draft_map(job_id, actor.workspace.id, contents, conn)
+    completed_at = now_iso()
+    _delete_import_source(row, conn, completed_at)
+    conn.execute(
+        "UPDATE current_state_import_jobs SET status = ?, error_message = ?, result_map_id = ?, updated_at = ? WHERE id = ? AND workspace_id = ?",
+        ("failed" if error_message else "succeeded", error_message, map_id, completed_at, job_id, actor.workspace.id),
+    )
+    conn.commit()
+    return _row_to_import_job(_get_workspace_import_job(job_id, actor.workspace.id, conn))
+
+
+@import_router.get("", response_model=list[CurrentStateImportJob])
+def list_current_state_imports(
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> list[CurrentStateImportJob]:
+    rows = conn.execute(
+        "SELECT * FROM current_state_import_jobs WHERE workspace_id = ? ORDER BY created_at",
+        (actor.workspace.id,),
+    ).fetchall()
+    return [_row_to_import_job(row) for row in rows]
+
+
+@import_router.post("/{job_id}/retry", response_model=CurrentStateImportJob)
+def retry_current_state_import(
+    job_id: str,
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateImportJob:
+    _get_workspace_import_job(job_id, actor.workspace.id, conn)
+    timestamp = now_iso()
+    conn.execute(
+        "UPDATE current_state_import_jobs SET status = ?, error_message = NULL, updated_at = ? WHERE id = ? AND workspace_id = ?",
+        ("pending", timestamp, job_id, actor.workspace.id),
+    )
+    conn.commit()
+    return _row_to_import_job(_get_workspace_import_job(job_id, actor.workspace.id, conn))
+
+
+@router.post("", response_model=CurrentStateMap, status_code=status.HTTP_201_CREATED)
+def create_current_state_map(
+    payload: CurrentStateMapCreate,
+    actor: WorkspaceActor = Depends(require_current_state_editor),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    map_id = str(uuid4())
+    timestamp = now_iso()
+    conn.execute(
+        """
+        INSERT INTO current_state_maps (
+            id, workspace_id, title, version_ref, status, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            map_id,
+            actor.workspace.id,
+            payload.title.strip(),
+            payload.version_ref,
+            payload.status,
+            payload.source_version_id,
+            _json_dump([lane.model_dump() for lane in payload.lanes]),
+            _json_dump([phase.model_dump() for phase in payload.phases]),
+            _json_dump([node.model_dump() for node in payload.nodes]),
+            _json_dump([connector.model_dump() for connector in payload.connectors]),
+            _json_dump([comment.model_dump() for comment in payload.comments]),
+            timestamp,
+            timestamp,
+        ),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM current_state_maps WHERE id = ?", (map_id,)).fetchone()
+    return _row_to_map(row)
+
+
+@router.get("", response_model=list[CurrentStateMap])
+def list_current_state_maps(
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> list[CurrentStateMap]:
+    rows = conn.execute(
+        "SELECT * FROM current_state_maps WHERE workspace_id = ? ORDER BY created_at",
+        (actor.workspace.id,),
+    ).fetchall()
+    return [_row_to_map(row) for row in rows]
+
+
+@router.get("/{map_id}", response_model=CurrentStateMap)
+def get_current_state_map(
+    map_id: str,
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    return _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+
+
+@router.put("/{map_id}", response_model=CurrentStateMap)
+def update_current_state_map(
+    map_id: str,
+    payload: CurrentStateMapUpdate,
+    actor: WorkspaceActor = Depends(require_current_state_editor),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    existing = _get_workspace_map(map_id, actor.workspace.id, conn)
+    if existing["status"] == "locked":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="locked current-state map versions cannot be edited")
+    version_id = str(uuid4())
+    timestamp = now_iso()
+    conn.execute(
+        """
+        INSERT INTO current_state_maps (
+            id, workspace_id, title, version_ref, status, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            version_id,
+            actor.workspace.id,
+            payload.title.strip(),
+            payload.version_ref,
+            payload.status,
+            map_id,
+            _json_dump([lane.model_dump() for lane in payload.lanes]),
+            _json_dump([phase.model_dump() for phase in payload.phases]),
+            _json_dump([node.model_dump() for node in payload.nodes]),
+            _json_dump([connector.model_dump() for connector in payload.connectors]),
+            _json_dump([comment.model_dump() for comment in payload.comments]),
+            timestamp,
+            timestamp,
+        ),
+    )
+    conn.commit()
+    return _row_to_map(_get_workspace_map(version_id, actor.workspace.id, conn))
+
+
+@router.post("/{map_id}/comments", response_model=CurrentStateMap, status_code=status.HTTP_201_CREATED)
+def add_current_state_comment(
+    map_id: str,
+    payload: CurrentStateCommentCreate,
+    actor: WorkspaceActor = Depends(require_reviewer),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    existing = _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+    if payload.node_id is not None and not any(node.id == payload.node_id for node in existing.nodes):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="comment node_id must reference an existing node")
+    timestamp = now_iso()
+    next_comment = CurrentStateComment(
+        id=str(uuid4()),
+        body=payload.body.strip(),
+        node_id=payload.node_id,
+        version_ref=payload.version_ref or existing.version_ref,
+        author=actor.user.user_id,
+        created_at=timestamp,
+        resolved=payload.resolved,
+    )
+    comments = [*existing.comments, next_comment]
+    conn.execute(
+        "UPDATE current_state_maps SET comments = ?, updated_at = ? WHERE id = ? AND workspace_id = ?",
+        (_json_dump([comment.model_dump() for comment in comments]), timestamp, map_id, actor.workspace.id),
+    )
+    conn.commit()
+    return _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+
+
+@router.post("/{map_id}/accept", response_model=CurrentStateMap)
+def accept_current_state_map(
+    map_id: str,
+    actor: WorkspaceActor = Depends(require_reviewer),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    _get_workspace_map(map_id, actor.workspace.id, conn)
+    conn.execute(
+        "UPDATE current_state_maps SET status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?",
+        ("locked", now_iso(), map_id, actor.workspace.id),
+    )
+    conn.commit()
+    return _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+
+
+@router.get("/{map_id}/versions", response_model=list[CurrentStateMap])
+def list_current_state_map_versions(
+    map_id: str,
+    actor: WorkspaceActor = Depends(require_any_staff),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> list[CurrentStateMap]:
+    _get_workspace_map(map_id, actor.workspace.id, conn)
+    family_ids = _version_family_ids(map_id, actor.workspace.id, conn)
+    placeholders = ",".join("?" for _ in family_ids)
+    rows = conn.execute(
+        f"SELECT * FROM current_state_maps WHERE workspace_id = ? AND id IN ({placeholders}) ORDER BY created_at, updated_at",
+        (actor.workspace.id, *family_ids),
+    ).fetchall()
+    return [_row_to_map(row) for row in rows]
+
+
+@router.post("/{map_id}/lock", response_model=CurrentStateMap)
+def lock_current_state_map(
+    map_id: str,
+    actor: WorkspaceActor = Depends(require_reviewer),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    _get_workspace_map(map_id, actor.workspace.id, conn)
+    conn.execute(
+        "UPDATE current_state_maps SET status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?",
+        ("locked", now_iso(), map_id, actor.workspace.id),
+    )
+    conn.commit()
+    return _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+
+
+@router.post("/{map_id}/duplicate", response_model=CurrentStateMap, status_code=status.HTTP_201_CREATED)
+def duplicate_current_state_map(
+    map_id: str,
+    actor: WorkspaceActor = Depends(require_current_state_editor),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> CurrentStateMap:
+    existing = _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
+    duplicate_id = str(uuid4())
+    timestamp = now_iso()
+    conn.execute(
+        """
+        INSERT INTO current_state_maps (
+            id, workspace_id, title, version_ref, status, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            duplicate_id,
+            actor.workspace.id,
+            f"{existing.title} (draft)",
+            existing.version_ref,
+            "draft",
+            existing.id,
+            _json_dump([lane.model_dump() for lane in existing.lanes]),
+            _json_dump([phase.model_dump() for phase in existing.phases]),
+            _json_dump([node.model_dump() for node in existing.nodes]),
+            _json_dump([connector.model_dump() for connector in existing.connectors]),
+            _json_dump([comment.model_dump() for comment in existing.comments]),
+            timestamp,
+            timestamp,
+        ),
+    )
+    conn.commit()
+    return _row_to_map(_get_workspace_map(duplicate_id, actor.workspace.id, conn))

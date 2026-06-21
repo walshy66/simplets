@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Combined A — Warm Hero + Tiles/Queue Row (Desktop view)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; color: var(--navy); text-decoration: none; }
+  .tabs a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  .avatar { width: 30px; height: 30px; border-radius: 99px; background: rgba(32,180,201,.15); color: var(--cyan); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+
+  /* Hero: immediate actions from last 12h */
+  .hero { background: linear-gradient(135deg, rgba(32,180,201,.07), rgba(21,245,186,.08)); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-top: 16px; display: flex; gap: 32px; align-items: center; }
+  .hero-main { flex: 1; min-width: 0; }
+  .hero h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .hero .hero-sub { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
+  .actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .action { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 13px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .dot { width: 9px; height: 9px; border-radius: 99px; background: var(--amber); flex-shrink: 0; }
+  .action-body { flex: 1; min-width: 0; }
+  .action-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .action-meta { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .btn { font-family: inherit; font-size: 13px; font-weight: 600; border: none; border-radius: 10px; padding: 8px 16px; cursor: pointer; background: var(--navy); color: #fff; white-space: nowrap; }
+  .btn:hover { background: #24134F; }
+  .hero-art { flex-shrink: 0; }
+
+  /* Row: tiles (left 1/3) + queue (right 2/3) */
+  .row { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-top: 28px; align-items: start; }
+  .tiles { display: flex; flex-direction: column; gap: 16px; }
+  .tile { border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .tile:hover { border-color: var(--cyan); }
+  .tile h3 { font-size: 13.5px; font-weight: 600; }
+  .tile small { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .pill { font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 4px 13px; border-radius: 99px; background: rgba(32,180,201,.12); color: #0E7D8E; flex-shrink: 0; }
+  .pill-warn { background: rgba(242,184,75,.18); color: #92600A; }
+  .pill-ok { background: rgba(21,245,186,.18); color: #067857; }
+
+  .panel { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); overflow: hidden; }
+  .panel-head { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { font-size: 14.5px; font-weight: 600; }
+  .panel-head a { font-size: 13px; color: var(--cyan); text-decoration: none; font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 11px 22px; border-bottom: 1px solid var(--border); background: #fff; }
+  td { padding: 13px 22px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(32,180,201,0.05); }
+  .tag { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .tag-pending { background: rgba(242,184,75,.18); color: #92600A; }
+  .tag-ok { background: rgba(21,245,186,.18); color: #067857; }
+
+  @media (max-width: 900px) {
+    .tabs { display: none; }
+    .hero { flex-direction: column; align-items: stretch; padding: 24px; }
+    .hero-art { align-self: center; order: -1; }
+    .row { grid-template-columns: 1fr; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="brand-dot">S</span> SimpleTS</div>
+    <div class="tabs"><a class="active" href="#">Dashboard</a><a href="#">Forms</a><a href="#">Workflows</a><a href="#">Review queue</a></div>
+    <div class="avatar">CW</div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-main">
+      <h1>Needs your attention</h1>
+      <p class="hero-sub">New in the last 12 hours and not yet handled</p>
+      <div class="actions">
+        <div class="action">
+          <span class="dot"></span>
+          <div class="action-body">
+            <div class="action-title">Riverside Physio — client intake submitted</div>
+            <div class="action-meta">2h ago · waiting for review</div>
+          </div>
+          <button class="btn">Review</button>
+        </div>
+        <div class="action">
+          <span class="dot"></span>
+          <div class="action-body">
+            <div class="action-title">Bright Spark Tutors — onboarding form submitted</div>
+            <div class="action-meta">7h ago · waiting for review</div>
+          </div>
+          <button class="btn">Review</button>
+        </div>
+      </div>
+    </div>
+    <div class="hero-art">
+      <svg width="180" height="150" viewBox="0 0 190 150" fill="none">
+        <ellipse cx="95" cy="136" rx="78" ry="9" fill="#E5E7EB" opacity=".6"/>
+        <rect x="34" y="92" width="122" height="8" rx="4" fill="#150A32"/>
+        <rect x="44" y="100" width="7" height="36" rx="3" fill="#150A32"/>
+        <rect x="139" y="100" width="7" height="36" rx="3" fill="#150A32"/>
+        <rect x="58" y="64" width="40" height="28" rx="5" fill="#20B4C9"/>
+        <rect x="64" y="70" width="28" height="3.5" rx="1.75" fill="#fff" opacity=".85"/>
+        <rect x="64" y="77" width="20" height="3.5" rx="1.75" fill="#fff" opacity=".6"/>
+        <circle cx="124" cy="46" r="13" fill="#F6C7A8"/>
+        <path d="M111 46c0-8 5-14 13-14s13 6 13 14c-2-6-6-9-13-9s-11 3-13 9z" fill="#150A32"/>
+        <rect x="112" y="58" width="24" height="34" rx="10" fill="#15F5BA"/>
+        <rect x="104" y="62" width="10" height="22" rx="5" fill="#15F5BA" transform="rotate(18 104 62)"/>
+        <circle cx="103" cy="86" r="4.5" fill="#F6C7A8"/>
+        <rect x="148" y="28" width="26" height="32" rx="5" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+        <rect x="153" y="35" width="16" height="3" rx="1.5" fill="#20B4C9"/>
+        <rect x="153" y="42" width="12" height="3" rx="1.5" fill="#E5E7EB"/>
+        <rect x="153" y="49" width="14" height="3" rx="1.5" fill="#E5E7EB"/>
+        <circle cx="30" cy="40" r="4" fill="#15F5BA"/>
+        <circle cx="48" cy="22" r="3" fill="#20B4C9"/>
+        <circle cx="165" cy="14" r="3.5" fill="#F2B84B"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tiles">
+      <div class="tile"><div><h3>Forms</h3><small>live intake forms</small></div><span class="pill">4</span></div>
+      <div class="tile"><div><h3>Workflows</h3><small>moving client data</small></div><span class="pill pill-ok">3</span></div>
+      <div class="tile"><div><h3>Review queue</h3><small>waiting for review</small></div><span class="pill pill-warn">2</span></div>
+      <div class="tile"><div><h3>AI usage</h3><small>renews 1 July</small></div><span class="pill">42%</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Review queue</h2><a href="#">View all →</a></div>
+      <table>
+        <thead><tr><th>Client</th><th>Form</th><th>Received</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Riverside Physio</td><td>Client intake</td><td>2h ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+          <tr><td>Bright Spark Tutors</td><td>Onboarding</td><td>7h ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+          <tr><td>Harbour Lane Café</td><td>Onboarding</td><td>1d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+          <tr><td>GreenLeaf Gardens</td><td>Client intake</td><td>2d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+          <tr><td>Cove Street Dental</td><td>Client intake</td><td>3d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

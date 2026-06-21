@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 2 — Focus First (what needs attention)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  header { border-bottom: 1px solid var(--border); }
+  .header-inner { max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; color: var(--navy); text-decoration: none; }
+  .tabs a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  .avatar { width: 30px; height: 30px; border-radius: 99px; background: rgba(32,180,201,.15); color: var(--cyan); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+
+  main { max-width: 880px; margin: 0 auto; padding: 48px 24px 64px; }
+  h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin-top: 8px; font-size: 15px; }
+
+  .section-label { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 40px 0 14px; }
+
+  .attention { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); overflow: hidden; }
+  .item { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: none; }
+  .item:hover { background: rgba(32,180,201,0.05); }
+  .dot { width: 9px; height: 9px; border-radius: 99px; flex-shrink: 0; }
+  .dot-amber { background: var(--amber); }
+  .item-body { flex: 1; min-width: 0; }
+  .item-title { font-size: 14.5px; font-weight: 500; }
+  .item-meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .btn { font-family: inherit; font-size: 13px; font-weight: 600; border: none; border-radius: 10px; padding: 9px 16px; cursor: pointer; white-space: nowrap; }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: #24134F; }
+
+  .all-clear { display: flex; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 16px; padding: 20px; background: rgba(21,245,186,.07); }
+  .all-clear svg { width: 22px; height: 22px; stroke: #0BA77E; flex-shrink: 0; }
+  .all-clear p { font-size: 14px; color: var(--navy); }
+
+  .activity { border-left: 2px solid var(--border); margin-left: 8px; padding-left: 24px; display: flex; flex-direction: column; gap: 22px; }
+  .event { position: relative; }
+  .event::before { content: ""; position: absolute; left: -30px; top: 4px; width: 10px; height: 10px; border-radius: 99px; background: var(--cyan); border: 2px solid #fff; }
+  .event.ok::before { background: var(--mint); }
+  .event-title { font-size: 14px; font-weight: 500; }
+  .event-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .quick { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13.5px; font-weight: 500; color: var(--navy); text-decoration: none; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .chip:hover { border-color: var(--cyan); }
+  .chip svg { width: 15px; height: 15px; stroke: var(--cyan); }
+
+  @media (max-width: 640px) { .tabs { display: none; } main { padding-top: 32px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand"><span class="brand-dot">S</span> SimpleTS</div>
+    <div class="tabs">
+      <a class="active" href="#">Dashboard</a><a href="#">Forms</a><a href="#">Workflows</a><a href="#">Review queue</a>
+    </div>
+    <div class="avatar">CW</div>
+  </div>
+</header>
+<main>
+  <h1>Welcome back, Cameron</h1>
+  <p class="sub">Two things need your attention. Everything else is taken care of.</p>
+
+  <div class="section-label">Needs your attention</div>
+  <div class="attention">
+    <div class="item">
+      <span class="dot dot-amber"></span>
+      <div class="item-body">
+        <div class="item-title">New client intake — Riverside Physio</div>
+        <div class="item-meta">Submitted 2 hours ago · waiting for review</div>
+      </div>
+      <button class="btn btn-primary">Review</button>
+    </div>
+    <div class="item">
+      <span class="dot dot-amber"></span>
+      <div class="item-body">
+        <div class="item-title">Onboarding form — Harbour Lane Café</div>
+        <div class="item-meta">Submitted yesterday · waiting for review</div>
+      </div>
+      <button class="btn btn-primary">Review</button>
+    </div>
+  </div>
+
+  <div class="section-label">Recent activity</div>
+  <div class="activity">
+    <div class="event ok">
+      <div class="event-title">Client onboarding workflow completed for GreenLeaf Gardens</div>
+      <div class="event-time">Today · 9:14 am</div>
+    </div>
+    <div class="event">
+      <div class="event-title">Intake form shared with 2 new clients</div>
+      <div class="event-time">Yesterday · 4:32 pm</div>
+    </div>
+    <div class="event ok">
+      <div class="event-title">Document pack generated and filed for Riverside Physio</div>
+      <div class="event-time">Yesterday · 11:05 am</div>
+    </div>
+  </div>
+
+  <div class="section-label">Quick actions</div>
+  <div class="quick">
+    <a class="chip" href="#"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Share a form</a>
+    <a class="chip" href="#"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H15a3 3 0 0 1 3 3v6.5"/></svg> Open workflows</a>
+    <a class="chip" href="#"><svg fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Get help</a>
+  </div>
+</main>
+</body>
+</html>
