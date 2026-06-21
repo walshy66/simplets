@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combined C — Navy Banner Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; color: var(--navy); text-decoration: none; }
+  .tabs a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+  .avatar { width: 30px; height: 30px; border-radius: 99px; background: rgba(32,180,201,.15); color: var(--cyan); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+
+  /* Navy hero banner — the one premium-dark moment, everything else stays white */
+  .hero { background: var(--navy); border-radius: 20px; padding: 32px; margin-top: 16px; display: flex; gap: 32px; align-items: center; color: #fff; }
+  .hero-main { flex: 1; min-width: 0; }
+  .hero h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
+  .hero-sub { color: rgba(255,255,255,.65); font-size: 13px; margin-top: 6px; }
+  .actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .action { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 12px 16px; }
+  .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--amber); flex-shrink: 0; }
+  .action-title { font-size: 13.5px; font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .when { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: rgba(255,255,255,.55); flex-shrink: 0; }
+  .btn-mint { font-family: inherit; font-size: 12.5px; font-weight: 600; border: none; border-radius: 9px; padding: 8px 15px; cursor: pointer; background: var(--mint); color: var(--navy); flex-shrink: 0; }
+  .btn-mint:hover { background: #0FE1AA; }
+  .hero-art { flex-shrink: 0; }
+
+  /* Row: tiles left 1/3, queue 2/3 */
+  .row { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-top: 28px; align-items: stretch; }
+  .tiles { display: grid; grid-template-rows: repeat(4, 1fr); gap: 16px; }
+  .tile { border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); display: flex; align-items: center; gap: 14px; }
+  .tile:hover { border-color: var(--cyan); }
+  .tile .n { font-family: 'JetBrains Mono', monospace; font-size: 26px; min-width: 58px; }
+  .tile h3 { font-size: 13.5px; font-weight: 600; }
+  .tile small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .accent { width: 4px; align-self: stretch; border-radius: 99px; flex-shrink: 0; }
+  .a-cyan { background: var(--cyan); } .a-mint { background: var(--mint); }
+  .a-amber { background: var(--amber); } .a-navy { background: var(--navy); }
+
+  .panel { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); overflow: hidden; display: flex; flex-direction: column; }
+  .panel-head { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { font-size: 14.5px; font-weight: 600; }
+  .filters { display: flex; gap: 6px; }
+  .filter { font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; background: #fff; font-family: inherit; }
+  .filter.on { background: rgba(32,180,201,0.10); color: #0E7D8E; border-color: transparent; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 11px 22px; border-bottom: 1px solid var(--border); }
+  td { padding: 13px 22px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(32,180,201,0.05); }
+  .tag { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .tag-pending { background: rgba(242,184,75,.18); color: #92600A; }
+  .tag-ok { background: rgba(21,245,186,.18); color: #067857; }
+
+  @media (max-width: 900px) {
+    .tabs { display: none; }
+    .hero { flex-direction: column; align-items: stretch; padding: 24px; }
+    .hero-art { align-self: center; order: -1; }
+    .row { grid-template-columns: 1fr; }
+    .tiles { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="brand-dot">S</span> SimpleTS</div>
+    <div class="tabs"><a class="active" href="#">Dashboard</a><a href="#">Forms</a><a href="#">Workflows</a><a href="#">Review queue</a></div>
+    <div class="avatar">CW</div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-main">
+      <h1>Good morning, Cameron</h1>
+      <p class="hero-sub">2 new items in the last 12 hours haven't been handled yet</p>
+      <div class="actions">
+        <div class="action">
+          <span class="dot"></span>
+          <span class="action-title">Riverside Physio — client intake submitted</span>
+          <span class="when">2h ago</span>
+          <button class="btn-mint">Review</button>
+        </div>
+        <div class="action">
+          <span class="dot"></span>
+          <span class="action-title">Bright Spark Tutors — onboarding form submitted</span>
+          <span class="when">7h ago</span>
+          <button class="btn-mint">Review</button>
+        </div>
+      </div>
+    </div>
+    <div class="hero-art">
+      <!-- Flat illustration tuned for the navy banner: paper plane carrying a form -->
+      <svg width="170" height="140" viewBox="0 0 180 150" fill="none">
+        <circle cx="90" cy="72" r="58" fill="rgba(255,255,255,.05)"/>
+        <circle cx="90" cy="72" r="40" fill="rgba(255,255,255,.05)"/>
+        <path d="M38 86 134 46l-26 56-18-20z" fill="#20B4C9"/>
+        <path d="M90 82l44-36-26 56z" fill="#15F5BA"/>
+        <path d="M90 82l18 20-4-26z" fill="#0FE1AA"/>
+        <rect x="112" y="22" width="30" height="38" rx="5" fill="#fff"/>
+        <rect x="118" y="30" width="18" height="3.5" rx="1.75" fill="#20B4C9"/>
+        <rect x="118" y="38" width="13" height="3.5" rx="1.75" fill="#E5E7EB"/>
+        <rect x="118" y="46" width="16" height="3.5" rx="1.75" fill="#E5E7EB"/>
+        <path d="M24 110c10 0 10-6 20-6s10 6 20 6" stroke="rgba(255,255,255,.3)" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M110 124c8 0 8-5 16-5s8 5 16 5" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="34" cy="40" r="3.5" fill="#15F5BA"/>
+        <circle cx="152" cy="92" r="3" fill="#F2B84B"/>
+        <circle cx="58" cy="22" r="2.5" fill="#20B4C9"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="tiles">
+      <div class="tile"><span class="accent a-cyan"></span><span class="n">4</span><div><h3>Forms</h3><small>live intake forms</small></div></div>
+      <div class="tile"><span class="accent a-navy"></span><span class="n">3</span><div><h3>Workflows</h3><small>all healthy</small></div></div>
+      <div class="tile"><span class="accent a-amber"></span><span class="n">2</span><div><h3>Review queue</h3><small>waiting for review</small></div></div>
+      <div class="tile"><span class="accent a-mint"></span><span class="n">42%</span><div><h3>AI usage</h3><small>renews 1 July</small></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Review queue</h2>
+        <div class="filters">
+          <button class="filter on">All</button>
+          <button class="filter">Pending</button>
+          <button class="filter">Approved</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Client</th><th>Form</th><th>Received</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Riverside Physio</td><td>Client intake</td><td>2h ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+          <tr><td>Bright Spark Tutors</td><td>Onboarding</td><td>7h ago</td><td><span class="tag tag-pending">Pending</span></td></tr>
+          <tr><td>Harbour Lane Café</td><td>Onboarding</td><td>1d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+          <tr><td>GreenLeaf Gardens</td><td>Client intake</td><td>2d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+          <tr><td>Cove Street Dental</td><td>Client intake</td><td>3d ago</td><td><span class="tag tag-ok">Approved</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

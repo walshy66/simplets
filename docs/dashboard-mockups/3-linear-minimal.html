@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 3 — Linear Minimal (quiet rows)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  .btn { font-family: inherit; font-size: 13px; font-weight: 600; border: none; border-radius: 10px; padding: 9px 16px; cursor: pointer; background: var(--navy); color: #fff; }
+  .btn:hover { background: #24134F; }
+
+  .statline { display: flex; gap: 36px; padding: 36px 0 8px; flex-wrap: wrap; }
+  .stat { min-width: 90px; }
+  .stat .n { font-family: 'JetBrains Mono', monospace; font-size: 30px; }
+  .stat .l { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .stat .n em { font-style: normal; font-size: 14px; color: var(--muted); }
+
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 44px 0 6px; }
+
+  .rows { border-top: 1px solid var(--border); }
+  .row { display: flex; align-items: center; gap: 14px; padding: 15px 4px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--navy); }
+  .row:hover { background: rgba(32,180,201,0.05); }
+  .state { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+  .ok { background: var(--mint); } .pending { background: var(--amber); } .info { background: var(--cyan); }
+  .row-title { font-size: 14.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 99px; flex-shrink: 0; }
+  .tag-ok { background: rgba(21,245,186,.18); color: #067857; }
+  .tag-pending { background: rgba(242,184,75,.18); color: #92600A; }
+  .tag-info { background: rgba(32,180,201,.12); color: #0E7D8E; }
+  .when { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+  .usage { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding: 16px 4px; }
+  .bar { flex: 1; height: 6px; background: #F3F4F6; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 42%; background: var(--cyan); }
+  .usage span { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+
+  @media (max-width: 560px) { .when { display: none; } .statline { gap: 24px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="brand-dot">S</span> SimpleTS</div>
+    <button class="btn">+ New form</button>
+  </header>
+
+  <div class="statline">
+    <div class="stat"><div class="n">4</div><div class="l">Live forms</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">Workflows</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">To review</div></div>
+    <div class="stat"><div class="n">42<em>%</em></div><div class="l">AI usage</div></div>
+  </div>
+
+  <h2>Waiting for you</h2>
+  <div class="rows">
+    <a class="row" href="#">
+      <span class="state pending"></span>
+      <span class="row-title">Riverside Physio — new client intake</span>
+      <span class="tag tag-pending">Review</span>
+      <span class="when">2h ago</span>
+    </a>
+    <a class="row" href="#">
+      <span class="state pending"></span>
+      <span class="row-title">Harbour Lane Café — onboarding form</span>
+      <span class="tag tag-pending">Review</span>
+      <span class="when">1d ago</span>
+    </a>
+  </div>
+
+  <h2>Recently completed</h2>
+  <div class="rows">
+    <a class="row" href="#">
+      <span class="state ok"></span>
+      <span class="row-title">GreenLeaf Gardens — onboarding workflow finished</span>
+      <span class="tag tag-ok">Done</span>
+      <span class="when">9:14am</span>
+    </a>
+    <a class="row" href="#">
+      <span class="state ok"></span>
+      <span class="row-title">Riverside Physio — document pack generated and filed</span>
+      <span class="tag tag-ok">Done</span>
+      <span class="when">1d ago</span>
+    </a>
+    <a class="row" href="#">
+      <span class="state info"></span>
+      <span class="row-title">Intake form shared with 2 new clients</span>
+      <span class="tag tag-info">Shared</span>
+      <span class="when">1d ago</span>
+    </a>
+  </div>
+
+  <h2>AI usage</h2>
+  <div class="usage">
+    <div class="bar"><div class="bar-fill"></div></div>
+    <span>420 / 1,000 · renews 1 Jul</span>
+  </div>
+</div>
+</body>
+</html>

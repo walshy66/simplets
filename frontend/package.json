@@ -3,12 +3,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "node --experimental-strip-types src/sessionCreateModel.test.mjs && node --experimental-strip-types src/documentUploadModel.test.mjs && node --experimental-strip-types src/reviewQueueModel.test.mjs && node --experimental-strip-types src/sessionListModel.test.mjs && node --experimental-strip-types src/sessionLogTailModel.test.mjs && node --experimental-strip-types src/sessionSelectionModel.test.mjs && node --experimental-strip-types src/mobileStackedLayout.test.mjs && node --experimental-strip-types src/desktopSplitLayout.test.mjs && node --experimental-strip-types src/responsiveAccessibilityPolish.test.mjs && node --experimental-strip-types src/authModel.test.mjs && node --experimental-strip-types src/intakeFormModel.test.mjs && node --experimental-strip-types src/dashboardModel.test.mjs",
+    "test": "node --experimental-strip-types src/sessionCreateModel.test.mjs && node --experimental-strip-types src/documentUploadModel.test.mjs && node --experimental-strip-types src/reviewQueueModel.test.mjs && node --experimental-strip-types src/sessionListModel.test.mjs && node --experimental-strip-types src/sessionLogTailModel.test.mjs && node --experimental-strip-types src/sessionSelectionModel.test.mjs && node --experimental-strip-types src/mobileStackedLayout.test.mjs && node --experimental-strip-types src/desktopSplitLayout.test.mjs && node --experimental-strip-types src/responsiveAccessibilityPolish.test.mjs && node --experimental-strip-types src/authModel.test.mjs && node --experimental-strip-types src/intakeFormModel.test.mjs && node --experimental-strip-types src/dashboardModel.test.mjs && node --experimental-strip-types src/formEditorModel.test.mjs && node --experimental-strip-types src/currentStateMapModel.test.mjs && node --experimental-strip-types src/theme.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.8",
     "@vitejs/plugin-react": "latest",
+    "@xyflow/react": "^12.11.0",
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",

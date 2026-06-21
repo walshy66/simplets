@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 4 — Friendly Workspace (warm hero)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #150A32; --cyan: #20B4C9; --mint: #15F5BA;
+    --border: #E5E7EB; --amber: #F2B84B; --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: var(--navy); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); display: grid; place-items: center; color: var(--mint); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a { padding: 7px 14px; border-radius: 8px; font-size: 13.5px; color: var(--navy); text-decoration: none; }
+  .tabs a.active { background: rgba(32,180,201,0.10); font-weight: 600; }
+
+  .hero { background: linear-gradient(135deg, rgba(32,180,201,.07), rgba(21,245,186,.08)); border: 1px solid var(--border); border-radius: 20px; padding: 40px; margin-top: 16px; display: flex; align-items: center; gap: 32px; }
+  .hero-text { flex: 1; }
+  .hero h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .hero p { color: var(--muted); margin-top: 10px; font-size: 15px; line-height: 1.6; max-width: 460px; }
+  .hero-actions { margin-top: 22px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { font-family: inherit; font-size: 13.5px; font-weight: 600; border: none; border-radius: 10px; padding: 11px 18px; cursor: pointer; }
+  .btn-primary { background: var(--navy); color: #fff; } .btn-primary:hover { background: #24134F; }
+  .btn-accent { background: var(--mint); color: var(--navy); } .btn-accent:hover { background: #0FE1AA; }
+  .hero-art { flex-shrink: 0; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-top: 32px; }
+  .tile { border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .tile:hover { border-color: var(--cyan); }
+  .tile-head { display: flex; align-items: center; justify-content: space-between; }
+  .tile h3 { font-size: 15px; font-weight: 600; }
+  .pill { font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 3px 12px; border-radius: 99px; background: rgba(32,180,201,.12); color: #0E7D8E; }
+  .pill-warn { background: rgba(242,184,75,.18); color: #92600A; }
+  .pill-ok { background: rgba(21,245,186,.18); color: #067857; }
+  .tile p { font-size: 13.5px; color: var(--muted); margin-top: 12px; line-height: 1.55; }
+  .tile a { display: inline-block; margin-top: 16px; font-size: 13.5px; font-weight: 500; color: var(--cyan); text-decoration: none; }
+
+  .footer-note { margin-top: 40px; text-align: center; color: var(--muted); font-size: 13.5px; }
+  .footer-note a { color: var(--cyan); text-decoration: none; font-weight: 500; }
+
+  @media (max-width: 720px) {
+    .tabs { display: none; }
+    .hero { flex-direction: column; align-items: flex-start; padding: 28px; }
+    .hero-art { align-self: center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="brand-dot">S</span> SimpleTS</div>
+    <div class="tabs">
+      <a class="active" href="#">Dashboard</a><a href="#">Forms</a><a href="#">Workflows</a><a href="#">Review queue</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-text">
+      <h1>Everything's in order, Cameron ☀️</h1>
+      <p>Your forms are live, three workflows are quietly moving client data, and just two submissions are waiting for a quick look.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary">Review 2 submissions</button>
+        <button class="btn btn-accent">Share a form</button>
+      </div>
+    </div>
+    <div class="hero-art">
+      <!-- Flat, friendly illustration: person at a tidy desk with flowing documents -->
+      <svg width="190" height="150" viewBox="0 0 190 150" fill="none">
+        <ellipse cx="95" cy="136" rx="78" ry="9" fill="#E5E7EB" opacity=".6"/>
+        <rect x="34" y="92" width="122" height="8" rx="4" fill="#150A32"/>
+        <rect x="44" y="100" width="7" height="36" rx="3" fill="#150A32"/>
+        <rect x="139" y="100" width="7" height="36" rx="3" fill="#150A32"/>
+        <rect x="58" y="64" width="40" height="28" rx="5" fill="#20B4C9"/>
+        <rect x="64" y="70" width="28" height="3.5" rx="1.75" fill="#fff" opacity=".85"/>
+        <rect x="64" y="77" width="20" height="3.5" rx="1.75" fill="#fff" opacity=".6"/>
+        <circle cx="124" cy="46" r="13" fill="#F6C7A8"/>
+        <path d="M111 46c0-8 5-14 13-14s13 6 13 14c-2-6-6-9-13-9s-11 3-13 9z" fill="#150A32"/>
+        <rect x="112" y="58" width="24" height="34" rx="10" fill="#15F5BA"/>
+        <rect x="104" y="62" width="10" height="22" rx="5" fill="#15F5BA" transform="rotate(18 104 62)"/>
+        <circle cx="103" cy="86" r="4.5" fill="#F6C7A8"/>
+        <rect x="148" y="28" width="26" height="32" rx="5" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+        <rect x="153" y="35" width="16" height="3" rx="1.5" fill="#20B4C9"/>
+        <rect x="153" y="42" width="12" height="3" rx="1.5" fill="#E5E7EB"/>
+        <rect x="153" y="49" width="14" height="3" rx="1.5" fill="#E5E7EB"/>
+        <circle cx="30" cy="40" r="4" fill="#15F5BA"/>
+        <circle cx="48" cy="22" r="3" fill="#20B4C9"/>
+        <circle cx="165" cy="14" r="3.5" fill="#F2B84B"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="tile">
+      <div class="tile-head"><h3>Forms</h3><span class="pill">4 live</span></div>
+      <p>Intake forms your clients can fill in from any device. Share a link, we handle the rest.</p>
+      <a href="#">Manage forms →</a>
+    </div>
+    <div class="tile">
+      <div class="tile-head"><h3>Workflows</h3><span class="pill-ok pill">3 running</span></div>
+      <p>Each submission flows automatically into documents, folders and notifications.</p>
+      <a href="#">Open the canvas →</a>
+    </div>
+    <div class="tile">
+      <div class="tile-head"><h3>Review queue</h3><span class="pill-warn pill">2 waiting</span></div>
+      <p>A quick human check before anything is sent on. Approve or adjust in seconds.</p>
+      <a href="#">Start reviewing →</a>
+    </div>
+    <div class="tile">
+      <div class="tile-head"><h3>AI usage</h3><span class="pill">42%</span></div>
+      <p>420 of 1,000 smart extractions used this month. 580 remaining — renews 1 July.</p>
+      <a href="#">See plan details →</a>
+    </div>
+  </div>
+
+  <p class="footer-note">Stuck on anything? <a href="#">We're a message away</a> — real humans, plain English.</p>
+</div>
+</body>
+</html>

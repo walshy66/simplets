@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<!-- View at 1920×1080. Screenshot at browser zoom 100% (Ctrl+0). -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mock 02 — Future State</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:1920px;height:1080px;overflow:hidden;font-family:Calibri,'Inter',Arial,sans-serif;display:flex;background:#f4f5f7;}
+
+.sidebar{width:220px;height:1080px;background:#ffffff;display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid #e5e7eb;}
+.brand-logo-area{display:grid;place-items:center;width:100%;padding:20px 10px 16px;border-bottom:1px solid #e5e7eb;}
+.sts-sidebar-logo{display:block;width:110px;height:auto;object-fit:contain;border-radius:14px;}
+.nav{padding:10px 10px;display:flex;flex-direction:column;gap:1px;flex:1;}
+.ni{padding:8px 10px;border-radius:8px;color:#150a32;font-size:14px;font-weight:400;display:flex;align-items:center;gap:9px;cursor:default;line-height:1;}
+.ni.active{background:rgba(32,180,201,0.1);font-weight:600;}
+.ni svg{width:16px;height:16px;stroke:#150a32;opacity:0.65;flex-shrink:0;}
+.ni.active svg{stroke:#20b4c9;opacity:1;}
+.nav-section-label{padding:18px 10px 8px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.07em;font-family:'Montserrat',sans-serif;}
+.ws-footer{margin-top:auto;padding:16px 10px 20px;border-top:1px solid #e5e7eb;}
+.ws-acting{font-size:11px;color:#6b7280;margin-bottom:5px;}
+.ws-tenant{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:12px;color:#150a32;font-weight:500;}
+
+.canvas{flex:1;height:1080px;position:relative;background:#f4f5f7;background-image:radial-gradient(circle,#c5cad3 1px,transparent 1px);background-size:20px 20px;overflow:hidden;}
+
+.fp{position:absolute;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.1),0 1px 4px rgba(0,0,0,0.05);border:1px solid #e5e7eb;}
+.fp-hdr{top:18px;left:18px;right:18px;padding:13px 17px;display:flex;align-items:center;gap:13px;z-index:10;}
+.fp-back{width:33px;height:33px;background:#f6f7f9;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#150a32;flex-shrink:0;border:1px solid #e5e7eb;}
+.fp-tb{flex:1;}
+.eyebrow{font-size:10px;font-weight:700;color:#20b4c9;text-transform:uppercase;letter-spacing:0.9px;font-family:'Montserrat',sans-serif;}
+.fp-title{font-size:14.5px;font-weight:800;color:#150a32;margin-top:1px;font-family:'Montserrat',sans-serif;}
+.fp-sub{font-size:11px;color:#6b7280;margin-top:1px;}
+.fp-acts{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;border:none;cursor:default;font-family:inherit;}
+.btn-acc{background:#15f5ba;color:#150a32;}
+.btn-g{background:#f6f7f9;color:#150a32;border:1px solid #e5e7eb;}
+.badge{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.b-ai{background:#dae8fc;color:#1e4d8c;}
+
+.fp-pal{top:106px;left:18px;width:145px;padding:13px;z-index:9;}
+.fp-pal h4,.fp-sug h4{font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:9px;}
+.pb{display:block;width:100%;padding:7px 8px;margin-bottom:3px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#374151;font-weight:500;cursor:default;}
+
+.fp-sug{top:106px;right:18px;width:216px;padding:13px;z-index:9;}
+.cc{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;margin-bottom:7px;}
+.cc-t{font-size:11.5px;font-weight:700;color:#150a32;display:flex;align-items:center;gap:6px;}
+.cc-ai{background:#dae8fc;color:#1e4d8c;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;}
+.cc-b{font-size:10.5px;color:#6b7280;margin-top:3px;line-height:1.45;}
+.cc-m{font-size:9.5px;color:#9ca3af;margin-top:5px;}
+.conf-high{color:#16a34a;}
+.conf-med{color:#f59e0b;}
+
+.ai-banner{position:absolute;top:106px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #20b4c9;border-radius:10px;padding:9px 16px;font-size:11.5px;color:#150a32;box-shadow:0 2px 14px rgba(32,180,201,0.16);display:flex;align-items:center;gap:9px;white-space:nowrap;z-index:10;}
+.ai-icon{color:#20b4c9;font-size:16px;}
+.ai-pill{background:#dae8fc;color:#1e4d8c;border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:700;}
+.ai-note{color:#6b7280;font-size:11px;}
+
+.dw{position:absolute;left:180px;right:250px;top:56%;transform:translateY(-50%);z-index:1;}
+.dw svg{width:100%;height:auto;}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand-logo-area">
+    <img src="../branding/STS - logo - secondary.png" alt="Simple Technology Solutions" class="sts-sidebar-logo">
+  </div>
+  <nav class="nav">
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </div>
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+      Forms
+    </div>
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/><path d="M6.5 10v3a2 2 0 0 0 2 2H14"/></svg>
+      Current state
+    </div>
+    <div class="ni active">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H15a3 3 0 0 1 3 3v6.5"/></svg>
+      Workflows
+    </div>
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14l-3-3"/></svg>
+      Review queue
+    </div>
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Clients
+    </div>
+    <div class="nav-section-label">Account</div>
+    <div class="ni">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+  </nav>
+  <div class="ws-footer">
+    <div class="ws-acting">Acting as</div>
+    <div class="ws-tenant">platform-admin</div>
+  </div>
+</aside>
+
+<main class="canvas">
+
+  <div class="ai-banner">
+    <span class="ai-icon">✦</span>
+    <strong>SimpleTS AI</strong> analysed your current-state map and proposed automations for
+    <span class="ai-pill">4 steps</span>
+    <span class="ai-note">Review each suggestion then accept to publish the future-state map.</span>
+  </div>
+
+  <div class="fp fp-hdr">
+    <div class="fp-back">⌂</div>
+    <div class="fp-tb">
+      <div style="font-size:9px;font-weight:700;color:#15f5ba;text-transform:uppercase;letter-spacing:1.2px;font-family:'Montserrat',sans-serif;margin-bottom:2px;">Make Work Simple</div>
+      <div class="eyebrow">Future-state process map — AI Draft</div>
+      <div class="fp-title">Client Onboarding — Future State (AI Draft)</div>
+      <div class="fp-sub">9 shapes · 8 connectors · 4 AI automation suggestions · 3 swimlanes · Regroup Solutions · v2</div>
+    </div>
+    <div class="fp-acts">
+      <span class="badge b-ai">AI Draft</span>
+      <button class="btn btn-g">Save</button>
+      <button class="btn btn-acc">Accept Map</button>
+      <button class="btn btn-g">Duplicate</button>
+      <button class="btn btn-g">PNG</button>
+      <button class="btn btn-g">PDF</button>
+    </div>
+  </div>
+
+  <div class="fp fp-pal">
+    <h4>Shapes</h4>
+    <div class="pb">⬭ Start / End</div>
+    <div class="pb">▭ Process</div>
+    <div class="pb">⬚ Predefined</div>
+    <div class="pb">⌇ Document</div>
+    <div class="pb">◇ Decision</div>
+    <div class="pb">⌨ Manual Input</div>
+  </div>
+
+  <div class="fp fp-sug">
+    <h4>AI Suggestions · 4</h4>
+    <div class="cc">
+      <div class="cc-t">Simplets Webform <span class="cc-ai">AI — New</span></div>
+      <div class="cc-b">Replace phone enquiry with a structured digital intake webform.</div>
+      <div class="cc-m"><span class="conf-high">● High confidence</span> · Auto-applied</div>
+    </div>
+    <div class="cc">
+      <div class="cc-t">Auto-Draft Agreement <span class="cc-ai">AI — Auto</span></div>
+      <div class="cc-b">Engagement letter auto-generated from webform data via PandaDoc template.</div>
+      <div class="cc-m"><span class="conf-high">● High confidence</span> · Auto-applied</div>
+    </div>
+    <div class="cc">
+      <div class="cc-t">Digital KYC Verify <span class="cc-ai">AI — New</span></div>
+      <div class="cc-b">Simplets form captures KYC/AML data and triggers automated identity check.</div>
+      <div class="cc-m"><span class="conf-med">● Medium</span> · Needs review</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SVG — Future State (blue)
+       3 swimlanes: Client | SimpleTS AI | Regroup Staff
+       Zigzag pattern shows handoffs between lanes
+       viewBox 0 0 1380 430
+       Lane cy: 70 | 212 | 352
+       ══════════════════════════════════════════ -->
+  <div class="dw">
+    <svg viewBox="0 0 1380 430" xmlns="http://www.w3.org/2000/svg" overflow="visible">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 Z" fill="#6c8ebf"/>
+        </marker>
+      </defs>
+
+      <!-- Lane backgrounds — each lane a distinct colour -->
+      <rect x="0" y="0"   width="1380" height="430" rx="12" fill="white" stroke="#dde1e9" stroke-width="1.5"/>
+      <!-- Client: lavender -->
+      <rect x="72" y="0"   width="1308" height="140" fill="#f4eeff"/>
+      <!-- SimpleTS AI: cyan -->
+      <rect x="72" y="140" width="1308" height="145" fill="#e5f8fb"/>
+      <!-- Regroup Staff: amber -->
+      <rect x="72" y="285" width="1308" height="145" fill="#fff8e8"/>
+      <!-- Lane dividers -->
+      <line x1="0"  y1="140" x2="1380" y2="140" stroke="#dde1e9" stroke-width="1"/>
+      <line x1="0"  y1="285" x2="1380" y2="285" stroke="#dde1e9" stroke-width="1"/>
+      <!-- Label column per-lane fills -->
+      <rect x="0" y="0"   width="72" height="140" rx="12" fill="#d8c8f0"/>
+      <rect x="0" y="12"  width="72" height="128" fill="#d8c8f0"/><!-- flatten bottom radius -->
+      <rect x="0" y="140" width="72" height="145" fill="#b8e8f5"/>
+      <rect x="0" y="285" width="72" height="145" fill="#fde8b0"/>
+      <!-- Square off bottom of label col -->
+      <rect x="0" y="415" width="72" height="15" rx="12" fill="#fde8b0"/>
+      <rect x="0" y="415" width="72" height="8"  fill="#fde8b0"/>
+      <line x1="72" y1="0" x2="72" y2="430" stroke="#dde1e9" stroke-width="1.2"/>
+      <text transform="translate(36,70) rotate(-90)"  text-anchor="middle" font-size="10" font-weight="700" fill="#6a3f88" letter-spacing="1.5" font-family="Inter,sans-serif">CLIENT</text>
+      <text transform="translate(36,212) rotate(-90)" text-anchor="middle" font-size="9"  font-weight="700" fill="#0e7a8e" letter-spacing="1"   font-family="Inter,sans-serif">SIMPLESTS AI</text>
+      <text transform="translate(36,352) rotate(-90)" text-anchor="middle" font-size="9"  font-weight="700" fill="#8a5f00" letter-spacing="1"   font-family="Inter,sans-serif">REGROUP STAFF</text>
+
+      <!-- ── Connectors ── -->
+      <!-- N1→N2 horizontal L1 -->
+      <line x1="182" y1="70" x2="218" y2="70" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N2→N3 (L1→L2 down) -->
+      <polyline points="328,70 352,70 352,212 368,212" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N3→N4 (L2→L3 down) -->
+      <polyline points="478,212 502,212 502,352 518,352" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N4→N5 (L3→L2 up) -->
+      <polyline points="628,352 652,352 652,212 668,212" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N5→N6 (L2→L1 up) -->
+      <polyline points="778,212 800,212 800,70 818,70" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N6→N7 (L1→L3 down — long cross) -->
+      <polyline points="928,70 950,70 950,352 968,352" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <!-- N7 right vertex→N8 (L3→L2 up) -->
+      <polyline points="1080,352 1102,352 1102,212 1118,212" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+      <text x="1093" y="295" text-anchor="middle" font-size="9.5" fill="#6c8ebf" font-weight="600" font-family="Inter,sans-serif">Yes</text>
+      <!-- N8→N9 (L2→L1 up) -->
+      <polyline points="1228,212 1248,212 1248,70 1268,70" fill="none" stroke="#6c8ebf" stroke-width="1.8" marker-end="url(#arr)"/>
+
+      <!-- ══ NODES ══ -->
+
+      <!-- N1: Start "New Enquiry" · L1 cx=127 cy=70 -->
+      <rect x="77" y="50" width="105" height="40" rx="20" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="129" y="74" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d8c" font-family="Inter,sans-serif">New Enquiry</text>
+
+      <!-- N2: Document "Simplets Webform" · L1 cx=273 cy=70 — AI badge -->
+      <rect x="224" y="34" width="70" height="16" rx="8" fill="#20b4c9"/>
+      <text x="259" y="45" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Inter,sans-serif">✦ AI — New</text>
+      <path d="M218,50 L328,50 L328,86 Q300,102 273,86 Q246,70 218,86 Z" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="273" y="68" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Simplets</text>
+      <text x="273" y="80" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Webform</text>
+      <text x="273" y="107" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Document</text>
+
+      <!-- N3: Predefined "AI Triage + Schedule" · L2 cx=423 cy=212 — AI badge -->
+      <rect x="374" y="176" width="68" height="16" rx="8" fill="#20b4c9"/>
+      <text x="408" y="187" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Inter,sans-serif">✦ AI — Auto</text>
+      <rect x="368" y="192" width="110" height="40" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <line x1="384" y1="192" x2="384" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <line x1="462" y1="192" x2="462" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <text x="423" y="210" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">AI Triage</text>
+      <text x="423" y="223" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">&amp; Schedule</text>
+      <text x="423" y="248" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Predefined · AI</text>
+
+      <!-- N4: Process "Consultation" · L3 cx=573 cy=352 -->
+      <rect x="518" y="332" width="110" height="40" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="573" y="349" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Consultation</text>
+      <text x="573" y="362" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Conducted</text>
+      <text x="573" y="388" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Process</text>
+
+      <!-- N5: Predefined "Auto-Draft Agreement" · L2 cx=723 cy=212 — AI badge -->
+      <rect x="674" y="176" width="70" height="16" rx="8" fill="#20b4c9"/>
+      <text x="709" y="187" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Inter,sans-serif">✦ AI — Auto</text>
+      <rect x="668" y="192" width="110" height="40" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <line x1="684" y1="192" x2="684" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <line x1="762" y1="192" x2="762" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <text x="723" y="210" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Auto-Draft</text>
+      <text x="723" y="223" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Agreement</text>
+      <text x="723" y="248" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Predefined · AI</text>
+
+      <!-- N6: Document "Sign via PandaDoc" · L1 cx=873 cy=70 -->
+      <path d="M818,50 L928,50 L928,86 Q900,102 873,86 Q846,70 818,86 Z" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="873" y="68" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Digital Sign</text>
+      <text x="873" y="80" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">via PandaDoc</text>
+      <text x="873" y="107" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Document</text>
+
+      <!-- N7: Decision "Credit Approved?" · L3 cx=1024 cy=352 -->
+      <polygon points="1024,306 1080,352 1024,398 968,352" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="1024" y="349" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Credit</text>
+      <text x="1024" y="362" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Approved?</text>
+      <text x="1024" y="412" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Decision</text>
+
+      <!-- N8: Predefined "Auto-Provision Systems" · L2 cx=1173 cy=212 — AI badge -->
+      <rect x="1124" y="176" width="70" height="16" rx="8" fill="#20b4c9"/>
+      <text x="1159" y="187" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="Inter,sans-serif">✦ AI — Auto</text>
+      <rect x="1118" y="192" width="110" height="40" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <line x1="1134" y1="192" x2="1134" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <line x1="1212" y1="192" x2="1212" y2="232" stroke="#6c8ebf" stroke-width="1.5"/>
+      <text x="1173" y="210" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Auto-Provision</text>
+      <text x="1173" y="223" text-anchor="middle" font-size="10" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">Systems</text>
+      <text x="1173" y="248" text-anchor="middle" font-size="9" fill="#6c8ebf" font-family="Inter,sans-serif">Predefined · AI</text>
+      <text x="1173" y="262" text-anchor="middle" font-size="8" fill="#7fa8d4" font-style="italic" font-family="Inter,sans-serif">HubSpot · Xero · SharePoint · PandaDoc</text>
+
+      <!-- N9: End "Client Active" · L1 cx=1323 cy=70 -->
+      <rect x="1268" y="50" width="110" height="40" rx="20" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+      <text x="1323" y="74" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d8c" font-family="Inter,sans-serif">Client Active</text>
+
+      <!-- Savings callout -->
+      <rect x="1108" y="148" width="162" height="20" rx="5" fill="#e8f4fd" stroke="#6c8ebf" stroke-width="1.1"/>
+      <text x="1189" y="161" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1e4d8c" font-family="Inter,sans-serif">✦ Est. 3–5 days saved per client</text>
+    </svg>
+  </div>
+
+</main>
+</body>
+</html>
