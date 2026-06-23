@@ -1,0 +1,43 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="mVDTlD-a1ja1W1mf17nL">
+    <mxGraphModel dx="4814" dy="743" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-1" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.terminator;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="-2770" y="1680" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-2" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.terminator;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="-600" y="1690" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-4" parent="1" style="shape=parallelogram;html=1;strokeWidth=2;perimeter=parallelogramPerimeter;whiteSpace=wrap;rounded=1;arcSize=12;size=0.23;" value="Data" vertex="1">
+          <mxGeometry height="60" width="100" x="-2040" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-5" parent="1" style="verticalLabelPosition=bottom;verticalAlign=top;html=1;shape=process;whiteSpace=wrap;rounded=1;size=0.14;arcSize=6;" value="Pre defined process (off to a different workflow)" vertex="1">
+          <mxGeometry height="60" width="100" x="-2020" y="1750" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-6" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;" value="Multi Document" vertex="1">
+          <mxGeometry height="60" width="88" x="-1544" y="1750" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-7" parent="1" style="shape=internalStorage;whiteSpace=wrap;html=1;dx=15;dy=15;rounded=1;arcSize=8;strokeWidth=2;" value="internal storage" vertex="1">
+          <mxGeometry height="70" width="70" x="-1845" y="1745" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-8" parent="1" style="html=1;strokeWidth=2;shape=manualInput;boundedLbl=1;whiteSpace=wrap;rounded=1;size=26;arcSize=11;" value="manual input" vertex="1">
+          <mxGeometry height="60" width="100" x="-1730" y="1620" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-9" parent="1" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;legacyAnchorPoints=0;" value="Manual Operation" vertex="1">
+          <mxGeometry height="60" width="100" x="-1390" y="1620" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-11" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.document2;whiteSpace=wrap;size=0.25;" value="Document" vertex="1">
+          <mxGeometry height="60" width="100" x="-1550" y="1620" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-12" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="Decision" vertex="1">
+          <mxGeometry height="100" width="100" x="-1860" y="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="SGUa5ztgbdldzs8L_lEr-14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Process" vertex="1">
+          <mxGeometry height="60" width="120" x="-1740" y="1750" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.connections import router as connections_router
 from app.current_state import import_router as current_state_import_router
@@ -24,6 +27,11 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+workspace_branding_dir = Path("data/workspace-branding")
+workspace_branding_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/workspace-branding", StaticFiles(directory=workspace_branding_dir), name="workspace-branding")
 
 
 app.include_router(sessions_router)

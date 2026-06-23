@@ -44,6 +44,10 @@ export type DocumentMetadata = {
   uploaded_at: string;
   uploader: string;
   is_permanent_archive: boolean;
+  drive_file_id: string | null;
+  drive_web_url: string | null;
+  filename_hash: string | null;
+  filename_redacted: string | null;
 };
 
 export type WorkflowRun = {
@@ -55,7 +59,7 @@ export type WorkflowRun = {
   extraction_error: string | null;
   suggested_classification: string | null;
   extracted_fields: Record<string, unknown> | null;
-  review_status: 'pending' | 'approved';
+  review_status: 'pending' | 'reviewed' | 'approved';
   last_reviewed_by: string | null;
   last_reviewed_at: string | null;
   approved_by: string | null;
@@ -101,6 +105,13 @@ export type ReviewRunDetail = ReviewQueueItem & {
     reason: string | null;
   };
   destination_pushes: DestinationPush[];
+  improve_extraction_gate?: {
+    feature_enabled: boolean;
+    subscription_enabled: boolean;
+    permission_allowed: boolean;
+    action_enabled: boolean;
+    unavailable_reason?: string | null;
+  } | null;
 };
 
 export type DocumentUploadResult = {
@@ -294,8 +305,26 @@ export type Workspace = {
   updated_at: string;
 };
 
+export type ClientContext = {
+  workspace: Workspace;
+  drive_datastore: {
+    provider: 'google_drive';
+    drive_root_id: string;
+    invoice_folder_id: string;
+    folder_path: string | null;
+  } | null;
+  invoice_upload: {
+    available: boolean;
+    reason: string | null;
+  };
+};
+
 export function getCurrentWorkspace(): Promise<Workspace> {
   return request<Workspace>('/workspaces/current');
+}
+
+export function getClientContext(): Promise<ClientContext> {
+  return request<ClientContext>('/workspaces/current/client-context');
 }
 
 export function updateWorkspaceBranding(payload: {
@@ -306,6 +335,23 @@ export function updateWorkspaceBranding(payload: {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+}
+
+export async function uploadWorkspaceLogo(file: File): Promise<Workspace> {
+  const authHeaders = await authHeadersProvider();
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/workspaces/current/branding/logo`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: form,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<Workspace>;
 }
 
 export function listReviewQueue(): Promise<ReviewQueueItem[]> {
@@ -323,11 +369,22 @@ export function updateReviewFields(id: string, reviewer: string, extractedFields
   });
 }
 
+export function markReviewRunReviewed(id: string, reviewer: string): Promise<WorkflowRun> {
+  return request<WorkflowRun>(`/workflow-runs/${id}/review/mark-reviewed`, {
+    method: 'POST',
+    body: JSON.stringify({ reviewer, fields_reviewed: true }),
+  });
+}
+
 export function approveReviewRun(id: string, reviewer: string): Promise<ApprovalResult> {
   return request<ApprovalResult>(`/workflow-runs/${id}/review/approve`, {
     method: 'POST',
     body: JSON.stringify({ reviewer, fields_reviewed: true }),
   });
+}
+
+export function purgeWorkflowRun(id: string): Promise<void> {
+  return request<void>(`/workflow-runs/${id}`, { method: 'DELETE' });
 }
 
 export function retryDestinationPush(id: string, reviewer: string): Promise<ApprovalResult> {

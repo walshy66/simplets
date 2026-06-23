@@ -94,6 +94,30 @@ class WorkspaceCanvasUpdate(BaseModel):
     activepieces_project_id: str | None = None
 
 
+class DriveDatastoreSetup(BaseModel):
+    drive_root_id: str = Field(min_length=1)
+    invoice_folder_id: str = Field(min_length=1)
+    folder_path: str | None = None
+
+
+class DriveDatastore(BaseModel):
+    provider: Literal["google_drive"] = "google_drive"
+    drive_root_id: str
+    invoice_folder_id: str
+    folder_path: str | None = None
+
+
+class InvoiceUploadGate(BaseModel):
+    available: bool
+    reason: str | None = None
+
+
+class ClientContext(BaseModel):
+    workspace: Workspace
+    drive_datastore: DriveDatastore | None = None
+    invoice_upload: InvoiceUploadGate
+
+
 class ConnectorConnection(BaseModel):
     """Public connection state. Token material is intentionally absent."""
 
@@ -152,6 +176,10 @@ class DocumentMetadata(BaseModel):
     uploaded_at: str
     uploader: str
     is_permanent_archive: bool = False
+    drive_file_id: str | None = None
+    drive_web_url: str | None = None
+    filename_hash: str | None = None
+    filename_redacted: str | None = None
 
 
 class WorkflowRun(BaseModel):

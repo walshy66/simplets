@@ -116,7 +116,11 @@ def init_db() -> None:
                 deletion_status TEXT NOT NULL CHECK (deletion_status IN ('retained', 'deleted')),
                 uploaded_at TEXT NOT NULL,
                 uploader TEXT NOT NULL,
-                is_permanent_archive INTEGER NOT NULL CHECK (is_permanent_archive IN (0, 1)) DEFAULT 0
+                is_permanent_archive INTEGER NOT NULL CHECK (is_permanent_archive IN (0, 1)) DEFAULT 0,
+                drive_file_id TEXT,
+                drive_web_url TEXT,
+                filename_hash TEXT,
+                filename_redacted TEXT
             )
             """
         )
@@ -161,6 +165,20 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 UNIQUE (workspace_id, provider),
+                FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workspace_drive_datastores (
+                workspace_id TEXT PRIMARY KEY,
+                provider TEXT NOT NULL CHECK (provider = 'google_drive'),
+                drive_root_id TEXT NOT NULL,
+                invoice_folder_id TEXT NOT NULL,
+                folder_path TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
                 FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
             )
             """
@@ -243,6 +261,14 @@ def init_db() -> None:
         document_columns = {column[1] for column in conn.execute("PRAGMA table_info(documents)").fetchall()}
         if "workspace_id" not in document_columns:
             conn.execute("ALTER TABLE documents ADD COLUMN workspace_id TEXT")
+        if "drive_file_id" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN drive_file_id TEXT")
+        if "drive_web_url" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN drive_web_url TEXT")
+        if "filename_hash" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN filename_hash TEXT")
+        if "filename_redacted" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN filename_redacted TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_workspace ON documents(workspace_id)")
 
         workflow_run_columns = {column[1] for column in conn.execute("PRAGMA table_info(workflow_runs)").fetchall()}

@@ -21,6 +21,7 @@ Owns frontend source in `src/`, Vite/TypeScript config, frontend Docker/Fly file
 
 - Keep behavior in testable model modules where possible.
 - Use synthetic/demo data only.
+- The Clients page owns the subscriber/operator invoice ingestion entry point: client assignment, document import, extracted-field review, and approve/cancel/retry actions before connector distribution.
 - Preserve accessibility and responsive behavior when changing screens.
 - Form editor work starts as a mock-backed, real-route prototype: template-first creation, vertical canvas, connector chips/mapping review, form-level confirmation, and draft-to-publish UX before backend persistence.
 

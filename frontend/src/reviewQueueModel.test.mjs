@@ -6,7 +6,10 @@ import {
   flaggedFieldNames,
   formatApprovalOutcome,
   formatSourcePreview,
+  getImproveExtractionControl,
   hasFailedPushes,
+  invoiceFieldRows,
+  invoiceReviewStatus,
   parseEditableFields,
 } from './reviewQueueModel.ts';
 
@@ -63,5 +66,76 @@ assert.deepEqual(flaggedFieldNames({ plain: 'fields' }), []);
 
 assert.equal(hasFailedPushes([{ provider: 'mock', status: 'succeeded', destination_record_id: null, error_message: null }]), false);
 assert.equal(hasFailedPushes([{ provider: 'hubspot', status: 'failed', destination_record_id: null, error_message: 'x' }]), true);
+
+assert.deepEqual(
+  getImproveExtractionControl({
+    extractedFields: { invoice_date: null, _extraction: { flagged_fields: ['invoice_date'] } },
+    gate: { feature_enabled: true, subscription_enabled: true, permission_allowed: true, action_enabled: false },
+  }),
+  {
+    visible: true,
+    enabled: false,
+    label: 'Improve extraction',
+    message: 'Enhanced extraction is not enabled yet. No workspace usage allowance/usage units will be consumed.',
+  },
+);
+assert.equal(
+  getImproveExtractionControl({
+    extractedFields: {
+      invoice_number: 'INV-1',
+      vendor_name: 'Acme',
+      invoice_date: '2026-06-01',
+      due_date: '2026-06-30',
+      total_amount: 100,
+      currency: 'AUD',
+      _extraction: { field_details: { invoice_number: { confidence: 'high' } } },
+    },
+    gate: { feature_enabled: true, subscription_enabled: true, permission_allowed: true, action_enabled: false },
+  }).visible,
+  false,
+);
+assert.match(
+  getImproveExtractionControl({
+    extractedFields: { invoice_date: null },
+    gate: { feature_enabled: false, subscription_enabled: true, permission_allowed: true, action_enabled: false },
+  }).message,
+  /workspace usage allowance\/usage units/i,
+);
+assert.equal(
+  getImproveExtractionControl({
+    extractedFields: { invoice_date: null },
+    gate: { feature_enabled: true, subscription_enabled: true, permission_allowed: true, action_enabled: true },
+  }).enabled,
+  true,
+);
+
+assert.equal(invoiceReviewStatus({ review_status: 'pending', document: { deletion_status: 'retained' } }), 'Needs review');
+assert.equal(invoiceReviewStatus({ review_status: 'reviewed', document: { deletion_status: 'retained' } }), 'Reviewed');
+assert.equal(invoiceReviewStatus({ review_status: 'approved', document: { deletion_status: 'retained' } }), 'Reviewed');
+assert.equal(invoiceReviewStatus({ review_status: 'approved', document: { deletion_status: 'deleted' } }), 'Purged');
+
+const rows = invoiceFieldRows({
+  invoice_number: 'INV-100',
+  vendor_name: 'Acme Supplies',
+  invoice_date: null,
+  due_date: '2026-07-01',
+  total_amount: 1100,
+  currency: 'AUD',
+  _extraction: {
+    flagged_fields: ['invoice_date'],
+    field_details: {
+      invoice_number: { source: 'document text', confidence: 'high' },
+      invoice_date: { source: null, confidence: 'missing', flag_reason: 'not found in document' },
+    },
+  },
+});
+assert.deepEqual(rows.map((row) => row.key), ['invoice_number', 'vendor_name', 'invoice_date', 'due_date', 'total_amount', 'currency']);
+assert.equal(rows[0].label, 'Invoice number');
+assert.equal(rows[0].displayValue, 'INV-100');
+assert.equal(rows[0].provenanceLabel, 'document text · high confidence');
+assert.equal(rows[2].isMissingOrUncertain, true);
+assert.equal(rows[2].displayValue, 'Missing');
+assert.equal(rows[2].provenanceLabel, 'Provenance unavailable · missing confidence');
+assert.equal(rows.some((row) => row.key === 'line_items'), false);
 
 console.log('reviewQueueModel tests passed');

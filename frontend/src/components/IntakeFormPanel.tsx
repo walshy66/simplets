@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { extractPreview, submitIntakeForm } from '../api';
+import { ClientContext, extractPreview, getClientContext, submitIntakeForm } from '../api';
 import {
   INTAKE_DRAFT_STORAGE_KEY,
   INTAKE_FIELDS,
@@ -24,9 +24,16 @@ export default function IntakeFormPanel() {
   const [flaggedFields, setFlaggedFields] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRunId, setSubmittedRunId] = useState<string | null>(null);
+  const [clientContext, setClientContext] = useState<ClientContext | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoredRef = useRef(false);
+
+  useEffect(() => {
+    getClientContext()
+      .then(setClientContext)
+      .catch(() => setError('We could not confirm upload setup for this client page.'));
+  }, []);
 
   useEffect(() => {
     const draft = parseDraft(window.localStorage.getItem(INTAKE_DRAFT_STORAGE_KEY));
@@ -59,6 +66,10 @@ export default function IntakeFormPanel() {
   }
 
   async function handleExtract() {
+    if (clientContext?.invoice_upload.available === false) {
+      setExtractionNotice('Invoice upload is unavailable until Google Drive datastore setup is complete for this client.');
+      return;
+    }
     const file = fileInputRef.current?.files?.[0];
     if (!file) {
       setExtractionNotice('Choose a document first, then run extraction.');
@@ -106,6 +117,11 @@ export default function IntakeFormPanel() {
       formData.append('intent', INTAKE_INTENT);
       formData.append('fields', JSON.stringify(buildSubmissionFields(values)));
       const file = fileInputRef.current?.files?.[0];
+      if (file && clientContext?.invoice_upload.available === false) {
+        setError('Invoice upload is unavailable until Google Drive datastore setup is complete for this client.');
+        setSubmitting(false);
+        return;
+      }
       if (file) {
         formData.append('file', file);
       }
@@ -140,6 +156,11 @@ export default function IntakeFormPanel() {
         </p>
       ) : null}
       {error ? <p className="session-error">{error}</p> : null}
+      {clientContext?.invoice_upload.available === false ? (
+        <p className="session-error">
+          Invoice uploads are not available yet. Ask your SimpleTS workspace admin to finish Google Drive datastore setup for this client before attaching invoices.
+        </p>
+      ) : null}
 
       <form onSubmit={handleSubmit}>
         <label>
@@ -155,8 +176,14 @@ export default function IntakeFormPanel() {
         <fieldset className="intake-upload">
           <legend>Supporting document (optional)</legend>
           <p>Upload an invoice, ATO notice, or ID document and we will pre-fill matching fields.</p>
-          <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt" aria-label="Supporting document" />
-          <button type="button" onClick={handleExtract} disabled={extracting || submitting}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+            aria-label="Supporting document"
+            disabled={clientContext?.invoice_upload.available === false}
+          />
+          <button type="button" onClick={handleExtract} disabled={extracting || submitting || clientContext?.invoice_upload.available === false}>
             {extracting ? 'Extracting… this can take up to 15 seconds' : 'Extract details from document'}
           </button>
           {extractionNotice ? <p className="session-status">{extractionNotice}</p> : null}

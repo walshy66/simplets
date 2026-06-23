@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app import db, destinations
 from app.connections import upsert_connection
+from app.intake import get_invoice_drive_uploader
 from app.main import app
 
 HOST = {"host": "clienta.simplets.com.au"}
@@ -88,15 +89,33 @@ def test_form_submission_reaches_review_queue(monkeypatch, tmp_path):
     assert payload["document"]["deletion_status"] == "retained"
 
 
-def test_submission_with_file_stores_the_uploaded_file(monkeypatch, tmp_path):
+def test_submission_with_file_stores_drive_pointer_metadata(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
 
-    with TestClient(app) as client:
-        provision_workspace(client)
-        payload = submit_intake(client, with_file=True)
+    class RecordingDriveUploader:
+        def upload_file(self, access_token, *, filename, content_type, contents, parent_folder_id):
+            return {"id": "drive-file-approval", "webViewLink": "https://drive.example/file/approval"}
 
-    assert payload["document"]["filename"] == "payslip.pdf"
+    app.dependency_overrides[get_invoice_drive_uploader] = lambda: RecordingDriveUploader()
+    try:
+        with TestClient(app) as client:
+            workspace = provision_workspace(client)
+            with db.sqlite3.connect(db.DB_PATH) as conn:
+                conn.execute(
+                    "INSERT INTO workspace_drive_datastores (workspace_id, provider, drive_root_id, invoice_folder_id, folder_path, created_at, updated_at) VALUES (?, 'google_drive', ?, ?, ?, ?, ?)",
+                    (workspace["id"], "root-a", "invoice-folder-a", "Clients/A/Invoices", "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
+                )
+                conn.commit()
+                upsert_connection(conn, workspace["id"], "google_drive", access_token="drive-token")
+            payload = submit_intake(client, with_file=True)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert payload["document"]["filename"] == "[redacted].pdf"
     assert payload["document"]["content_type"] == "application/pdf"
+    assert payload["document"]["temporary_storage_path"] == "google_drive://drive-file-approval"
+    assert payload["document"]["drive_file_id"] == "drive-file-approval"
+    assert payload["document"]["filename_redacted"] == "[redacted].pdf"
 
 
 def test_successful_approval_purges_everything_but_audit(monkeypatch, tmp_path):

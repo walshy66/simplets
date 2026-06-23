@@ -418,6 +418,63 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.invoice-field-list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.invoice-field-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.invoice-field-row strong,
+.invoice-field-row span,
+.invoice-field-row em {
+  display: block;
+}
+
+.invoice-field-row strong {
+  color: var(--sts-navy);
+}
+
+.invoice-field-row div:first-child span,
+.invoice-field-row em {
+  color: var(--sts-muted);
+  font-size: 12px;
+}
+
+.invoice-field-attention {
+  border-color: rgba(242, 184, 75, 0.75);
+  background: rgba(242, 184, 75, 0.12);
+}
+
+.improve-extraction-card {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(11, 181, 191, 0.45);
+  border-radius: 14px;
+  background: rgba(11, 181, 191, 0.08);
+}
+
+.improve-extraction-card p {
+  margin: 0;
+  color: var(--sts-muted);
+  font-size: 13px;
+}
+
+.invoice-field-editor {
+  margin: 12px 0;
+}
+
 @media (max-width: 720px) {
   .app-shell {
     padding: 16px;
@@ -1524,9 +1581,10 @@ body.process-map-open {
   align-items: center;
   gap: 28px;
   padding: 30px 32px;
+  border: 1px solid #150a32;
   border-radius: 20px;
-  background: var(--brand-navy);
-  color: #fff;
+  background: #fff;
+  color: #20b4c9;
 }
 
 .dash-hero-main {
@@ -1537,7 +1595,7 @@ body.process-map-open {
 .dash-hero-kicker {
   display: inline-flex;
   margin-bottom: 8px;
-  color: var(--sts-mint);
+  color: #20b4c9;
   font-family: var(--font-heading);
   font-size: 11px;
   font-weight: 800;
@@ -1547,7 +1605,7 @@ body.process-map-open {
 
 .dash-hero h1 {
   margin: 0;
-  color: #fff;
+  color: #20b4c9;
   font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 600;
@@ -1556,7 +1614,7 @@ body.process-map-open {
 
 .dash-hero-sub {
   margin: 5px 0 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: #20b4c9;
   font-size: 13px;
 }
 
@@ -1576,9 +1634,9 @@ body.process-map-open {
   align-items: center;
   gap: 12px;
   padding: 11px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(21, 10, 50, 0.16);
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(32, 180, 201, 0.06);
 }
 
 .dash-dot {
@@ -1601,7 +1659,7 @@ body.process-map-open {
 
 .dash-action-when {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: #20b4c9;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
 }
@@ -2064,9 +2122,133 @@ body.process-map-open {
   background: var(--brand-navy);
 }
 
+.settings-secondary-action {
+  justify-self: start;
+  margin: -8px 0 8px;
+  border-color: rgba(32, 180, 201, 0.35);
+  background: rgba(32, 180, 201, 0.08);
+  color: var(--sts-cyan-ink);
+}
+
 .settings-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.clients-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.primary-action,
+.secondary-action,
+.icon-button {
+  white-space: nowrap;
+}
+
+.client-list,
+.client-search-results {
+  display: grid;
+  gap: 10px;
+}
+
+.client-card,
+.client-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--sts-line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.client-card span,
+.client-result span {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.client-result {
+  width: 100%;
+  text-align: left;
+}
+
+.client-result.selected {
+  border-color: var(--sts-cyan);
+  box-shadow: 0 0 0 3px rgba(32, 180, 201, 0.15);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 22, 48, 0.54);
+}
+
+.invoice-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(5, 22, 48, 0.28);
+}
+
+.invoice-modal-header,
+.invoice-modal-actions,
+.invoice-modal-body {
+  padding: 22px 24px;
+}
+
+.invoice-modal-header,
+.invoice-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--sts-line);
+}
+
+.invoice-modal-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--sts-line);
+  border-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.invoice-modal-body {
+  display: grid;
+  gap: 16px;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .clients-hero,
+  .client-card,
+  .client-result {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
 }

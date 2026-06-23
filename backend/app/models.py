@@ -62,4 +62,5 @@ class WorkflowRunStatus(StrEnum):
 
 class ReviewStatus(StrEnum):
     PENDING = "pending"
+    REVIEWED = "reviewed"
     APPROVED = "approved"

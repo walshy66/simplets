@@ -8,6 +8,7 @@ retains data until resolved. Token refresh is wired through provider refreshers
 backed by the STS developer app credentials (one app per provider, per PRD).
 """
 
+import json
 import os
 from typing import Any, Callable
 
@@ -188,13 +189,38 @@ class HubSpotAdapter:
 
 
 class GoogleDriveAdapter:
-    """COA-279: create a named client folder in the configured Drive location."""
+    """COA-279: create a named client folder and COA-307 invoice files in Drive."""
 
     provider = "google_drive"
     base_url = "https://www.googleapis.com"
 
     def __init__(self, client: httpx.Client | None = None):
         self.client = client or httpx.Client(timeout=DEFAULT_TIMEOUT)
+
+    def upload_file(
+        self,
+        access_token: str,
+        *,
+        filename: str,
+        content_type: str | None,
+        contents: bytes,
+        parent_folder_id: str,
+    ) -> dict[str, str | None]:
+        metadata = {"name": filename, "parents": [parent_folder_id]}
+        files = {
+            "metadata": (None, json.dumps(metadata), "application/json; charset=UTF-8"),
+            "file": (filename, contents, content_type or "application/octet-stream"),
+        }
+        response = self.client.post(
+            f"{self.base_url}/upload/drive/v3/files",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"uploadType": "multipart", "fields": "id,webViewLink"},
+            files=files,
+        )
+        if response.status_code >= 400:
+            raise DestinationError(f"Google Drive file upload failed ({response.status_code}): {response.text[:200]}")
+        payload = response.json()
+        return {"id": payload["id"], "webViewLink": payload.get("webViewLink")}
 
     def push(self, access_token: str, fields: dict[str, Any], context: dict[str, Any]) -> str:
         folder_name = str(fields.get("full_name") or fields.get("business_name") or "New client").strip()
