@@ -204,6 +204,9 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+- Current State V1 should prioritise simplicity: all workspace staff can create/import/edit/approve Current State drafts until configurable approval permissions are introduced; submit-only/non-staff users remain blocked.
+- Current State process-map import replaces invoice-style ingestion for workflow mapping: import is available only from Current State, creates a new draft map, uses temporary source files, and starts with supported process-map file types under 25 MB.
+
 ## Child DOX Index
 
 - `backend/AGENTS.md` — FastAPI service layer, backend app modules, API authority, auth/tenancy, approvals, connectors, retention, and backend tests.

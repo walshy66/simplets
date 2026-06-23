@@ -58,6 +58,9 @@ type Props = {
   onNavigate: (path: string) => void;
 };
 
+const PROCESS_MAP_IMPORT_ACCEPT = 'application/pdf,image/png,image/jpeg,image/svg+xml,.drawio,.xml,.vsdx,.bpmn,.mmd,.mermaid,.puml,.plantuml,.dot,.graphml';
+const PROCESS_MAP_IMPORT_MAX_BYTES = 25 * 1024 * 1024;
+
 type ProcessFlowNodeData = {
   title: string;
   nodeType: string;
@@ -66,24 +69,57 @@ type ProcessFlowNodeData = {
   onComment: (nodeId: string) => void;
 };
 
+type VisualLaneNodeData = {
+  title: string;
+  laneType: typeof CURRENT_STATE_LANE_TYPES[number]['value'];
+  locked: boolean;
+  onRename: (laneId: string, title: string) => void;
+  onTypeChange: (laneId: string, laneType: typeof CURRENT_STATE_LANE_TYPES[number]['value']) => void;
+};
+
 function ProcessFlowNode({ id, data }: NodeProps<Node<ProcessFlowNodeData>>) {
+  const label = data.nodeType === 'process' ? 'Process' : data.nodeType.charAt(0).toUpperCase() + data.nodeType.slice(1);
   return (
-    <article className={`process-map-flow-node process-map-node-${data.nodeType}`}>
+    <article className={`process-map-flow-node process-map-node process-map-node-${data.nodeType}`}>
       <Handle type="target" position={Position.Left} isConnectable={!data.locked} />
-      <input
-        aria-label={`${data.nodeType} shape label`}
-        value={data.title}
-        disabled={data.locked}
-        onChange={(event) => data.onRename(id, event.target.value)}
-      />
-      <span>{data.nodeType}</span>
-      <button type="button" onClick={() => data.onComment(id)}>Comment</button>
+      <div className="process-map-node-content">
+        <input
+          aria-label={`${data.nodeType} shape label`}
+          value={data.title}
+          disabled={data.locked}
+          onChange={(event) => data.onRename(id, event.target.value)}
+        />
+        <span>{label}</span>
+        <button type="button" onClick={() => data.onComment(id)}>Comment</button>
+      </div>
       <Handle type="source" position={Position.Right} isConnectable={!data.locked} />
     </article>
   );
 }
 
-const PROCESS_FLOW_NODE_TYPES = { processShape: ProcessFlowNode };
+function VisualLaneNode({ id, data }: NodeProps<Node<VisualLaneNodeData>>) {
+  const laneId = id.replace(/^lane-/, '');
+  return (
+    <label className="process-map-visual-lane-node nodrag">
+      <span className="sr-only">Visual lane title</span>
+      <input
+        value={data.title}
+        disabled={data.locked}
+        onChange={(event) => data.onRename(laneId, event.target.value)}
+      />
+      <select
+        aria-label={`${data.title} lane type`}
+        value={data.laneType}
+        disabled={data.locked}
+        onChange={(event) => data.onTypeChange(laneId, event.target.value as typeof CURRENT_STATE_LANE_TYPES[number]['value'])}
+      >
+        {CURRENT_STATE_LANE_TYPES.map((laneType) => <option key={laneType.value} value={laneType.value}>{laneType.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+const PROCESS_FLOW_NODE_TYPES = { processShape: ProcessFlowNode, visualLane: VisualLaneNode };
 
 export default function CurrentStateMapsPage({ onNavigate }: Props) {
   const [maps, setMaps] = useState<CurrentStateMap[]>([]);
@@ -281,6 +317,10 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
   async function handleUploadImport(file: File | null) {
     if (!file) return;
     setError(null);
+    if (file.size > PROCESS_MAP_IMPORT_MAX_BYTES) {
+      setError('Process map imports must be 25 MB or smaller.');
+      return;
+    }
     setImportStatus('uploading');
     try {
       const uploaded = await uploadCurrentStateImport(file);
@@ -296,7 +336,7 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
         }
       }
     } catch {
-      setError('Unable to upload this import artifact.');
+      setError('Unable to upload this process map.');
     } finally {
       setImportStatus('idle');
     }
@@ -392,9 +432,25 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
     printWindow.print();
   }
 
-  const flowNodes = useMemo<Node<ProcessFlowNodeData>[]>(() => {
+  const flowNodes = useMemo<Node[]>(() => {
     if (!selectedMap) return [];
-    return selectedMap.nodes.map((node, index) => ({
+    const laneNodes: Node<VisualLaneNodeData>[] = selectedMap.lanes.map((lane, index) => ({
+      id: `lane-${lane.id}`,
+      type: 'visualLane',
+      position: { x: 20, y: 92 + index * 190 },
+      data: {
+        title: lane.title,
+        laneType: lane.lane_type ?? 'other',
+        locked: selectedMap.status === 'locked',
+        onRename: (laneId, title) => replaceSelectedMap(renameCurrentStateLane(selectedMap, laneId, title)),
+        onTypeChange: (laneId, laneType) => replaceSelectedMap(changeCurrentStateLaneType(selectedMap, laneId, laneType)),
+      },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      zIndex: -1,
+    }));
+    const processNodes: Node<ProcessFlowNodeData>[] = selectedMap.nodes.map((node, index) => ({
       id: node.id,
       type: 'processShape',
       position: currentStateNodePosition(node, index),
@@ -406,6 +462,7 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
         onComment: (nodeId) => handleAddComment(nodeId),
       },
     }));
+    return [...laneNodes, ...processNodes];
   }, [selectedMap]);
   const flowEdges = useMemo<Edge[]>(() => {
     if (!selectedMap) return [];
@@ -434,17 +491,17 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
       </div>
       {error ? <p role="alert" className="error-text">{error}</p> : null}
       {status === 'loading' ? <p>Loading process maps…</p> : null}
-      <section className="process-map-imports" aria-label="Generic import conversion jobs">
+      <section className="process-map-imports" aria-label="Process map import conversion jobs">
         <div className="panel-heading-row">
           <div>
-            <h3>Import artifact</h3>
-            <p className="muted">Upload an artifact to create an AI-assisted draft current-state map. Conversion is a starting point only and requires human cleanup; source files are temporary and audit metadata is redacted.</p>
+            <h3>Import process map</h3>
+            <p className="muted">Upload a process map to create an AI-assisted Current State draft. You can edit the result before approving it. Source files are temporary and deleted after conversion.</p>
           </div>
           <label className="button-like">
-            {importStatus === 'uploading' ? 'Uploading…' : 'Upload import'}
+            {importStatus === 'uploading' ? 'Uploading…' : 'Upload process map'}
             <input
               type="file"
-              accept="application/pdf,image/*,.csv,.json,.xml,.xlsx"
+              accept={PROCESS_MAP_IMPORT_ACCEPT}
               disabled={importStatus === 'uploading'}
               onChange={(event) => handleUploadImport(event.target.files?.[0] ?? null)}
             />
@@ -557,24 +614,6 @@ export default function CurrentStateMapsPage({ onNavigate }: Props) {
                         })}
                       </div>
                     ) : null}
-                    {selectedMap.lanes.map((lane, index) => (
-                      <label key={lane.id} className="process-map-visual-lane" style={{ top: 80 + index * 150 }}>
-                        <span className="sr-only">Visual lane title</span>
-                        <input
-                          value={lane.title}
-                          disabled={selectedMap.status === 'locked'}
-                          onChange={(event) => replaceSelectedMap(renameCurrentStateLane(selectedMap, lane.id, event.target.value))}
-                        />
-                        <select
-                          aria-label={`${lane.title} lane type`}
-                          value={lane.lane_type ?? 'other'}
-                          disabled={selectedMap.status === 'locked'}
-                          onChange={(event) => replaceSelectedMap(changeCurrentStateLaneType(selectedMap, lane.id, event.target.value as typeof CURRENT_STATE_LANE_TYPES[number]['value']))}
-                        >
-                          {CURRENT_STATE_LANE_TYPES.map((laneType) => <option key={laneType.value} value={laneType.value}>{laneType.label}</option>)}
-                        </select>
-                      </label>
-                    ))}
                     <ReactFlowProvider>
                       <ReactFlow
                         nodes={flowNodes}

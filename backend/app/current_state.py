@@ -1,6 +1,9 @@
 import hashlib
+import html
 import json
+import re
 import sqlite3
+import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -8,16 +11,21 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app import db
-from app.auth import WorkspaceActor, require_any_staff, require_reviewer, require_workspace_role
+from app.auth import WorkspaceActor, require_any_staff
 from app.db import get_connection
-from app.models import WorkspaceRole
 from app.schemas import CurrentStateComment, CurrentStateCommentCreate, CurrentStateImportJob, CurrentStateMap, CurrentStateMapCreate, CurrentStateMapUpdate
 from app.tenancy import now_iso
 
 router = APIRouter(prefix="/current-state-maps", tags=["current-state-maps"])
 import_router = APIRouter(prefix="/current-state-imports", tags=["current-state-imports"])
-require_current_state_editor = require_workspace_role(WorkspaceRole.ADMIN, WorkspaceRole.OPERATOR)
+# V1 keeps Current State permissions simple: every workspace staff member may
+# create/edit/import/approve maps. Keep capability-specific names so future
+# configurable role permissions can replace these seams without endpoint churn.
+require_current_state_editor = require_any_staff
+require_current_state_approver = require_any_staff
 IMPORT_SOURCE_RETENTION_HOURS = 24
+MAX_IMPORT_BYTES = 25 * 1024 * 1024
+ACCEPTED_IMPORT_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".svg", ".drawio", ".xml", ".vsdx", ".bpmn", ".mmd", ".mermaid", ".puml", ".plantuml", ".dot", ".graphml"}
 
 
 def _json_dump(value: object) -> str:
@@ -98,7 +106,159 @@ def _slug(value: str) -> str:
     return "-".join(part for part in "".join(char.lower() if char.isalnum() else " " for char in value).split() if part) or "item"
 
 
-def _convert_import_to_draft_map(job_id: str, workspace_id: str, contents: bytes, conn: sqlite3.Connection) -> tuple[str | None, str | None]:
+def _clean_drawio_value(value: str | None) -> str:
+    if not value:
+        return ""
+    text = html.unescape(value)
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    return " ".join(text.split())
+
+
+def _drawio_geometry(cell: ET.Element) -> dict[str, float]:
+    geometry = cell.find("mxGeometry")
+    if geometry is None:
+        return {"x": 0.0, "y": 0.0}
+    return {"x": float(geometry.attrib.get("x", 0) or 0), "y": float(geometry.attrib.get("y", 0) or 0)}
+
+
+def _normalise_drawio_layout(nodes: list[dict[str, object]], lanes: dict[str, dict[str, str]], phases: dict[str, dict[str, str]]) -> list[dict[str, object]]:
+    """Render imported diagrams into a clean SimpleTS layout rather than preserving draw.io coordinates.
+
+    draw.io stores many node coordinates relative to nested containers. Preserving
+    those values creates overlapping cards after import. Instead, keep draw.io
+    only as an ordering hint and place nodes on a readable lane/phase grid.
+    """
+    lane_order = {lane_id: index for index, lane_id in enumerate(lanes.keys())}
+    phase_order = {phase_id: index for index, phase_id in enumerate(phases.keys())}
+    lane_counters: dict[str, int] = {}
+    normalised: list[dict[str, object]] = []
+    sorted_nodes = sorted(
+        nodes,
+        key=lambda node: (
+            lane_order.get(str(node.get("lane_id") or ""), 999),
+            phase_order.get(str(node.get("phase_id") or ""), 999),
+            float(node.get("_source_x", 0)),
+            float(node.get("_source_y", 0)),
+        ),
+    )
+    for node in sorted_nodes:
+        lane_id = str(node.get("lane_id") or "default")
+        lane_index = lane_order.get(str(node.get("lane_id") or ""), 0)
+        sequence = lane_counters.get(lane_id, 0)
+        lane_counters[lane_id] = sequence + 1
+        clean_node = {key: value for key, value in node.items() if not key.startswith("_source_")}
+        clean_node["position"] = {"x": 220 + sequence * 280, "y": 140 + lane_index * 190}
+        normalised.append(clean_node)
+    return normalised
+
+
+def _convert_drawio_to_draft_map(job_id: str, workspace_id: str, contents: bytes, conn: sqlite3.Connection) -> tuple[str | None, str | None]:
+    try:
+        root = ET.fromstring(contents.decode("utf-8", errors="ignore"))
+    except ET.ParseError:
+        return None, "could not read draw.io process-map XML"
+
+    cells = {cell.attrib.get("id"): cell for cell in root.iter("mxCell") if cell.attrib.get("id")}
+    if not cells:
+        return None, "could not extract process-map steps from uploaded artifact"
+
+    def ancestors(cell: ET.Element) -> list[ET.Element]:
+        result: list[ET.Element] = []
+        parent_id = cell.attrib.get("parent")
+        while parent_id and parent_id in cells and parent_id not in {"0", "1"}:
+            parent = cells[parent_id]
+            result.append(parent)
+            parent_id = parent.attrib.get("parent")
+        return result
+
+    def absolute_position(cell: ET.Element) -> dict[str, float]:
+        position = _drawio_geometry(cell)
+        for ancestor in ancestors(cell):
+            ancestor_position = _drawio_geometry(ancestor)
+            position["x"] += ancestor_position["x"]
+            position["y"] += ancestor_position["y"]
+        return position
+
+    title = "AI-imported draw.io current-state map"
+    diagram = root.find("diagram")
+    if diagram is not None and diagram.attrib.get("name"):
+        title = _clean_drawio_value(diagram.attrib.get("name")) or title
+
+    lanes: dict[str, dict[str, str]] = {}
+    lane_source_y: dict[str, float] = {}
+    phases: dict[str, dict[str, str]] = {}
+    phase_source_x: dict[str, float] = {}
+    nodes: list[dict[str, object]] = []
+    imported_ids: set[str] = set()
+    container_styles = ("shape=table", "shape=tableRow", "swimlane", "childLayout=tableLayout")
+
+    for cell_id, cell in cells.items():
+        if cell.attrib.get("vertex") != "1":
+            continue
+        value = _clean_drawio_value(cell.attrib.get("value"))
+        if not value:
+            continue
+        style = cell.attrib.get("style", "")
+        if any(token in style for token in container_styles):
+            continue
+        style_lower = style.lower()
+        value_lower = value.lower()
+        if "decision" in style_lower or "rhombus" in style_lower:
+            node_type = "decision"
+        elif "document" in style_lower:
+            node_type = "document"
+        elif "terminator" in style_lower or value_lower == "start":
+            node_type = "start"
+        elif value_lower == "end":
+            node_type = "end"
+        else:
+            node_type = "process"
+        row_title = ""
+        phase_title = "Process"
+        for ancestor in ancestors(cell):
+            ancestor_style = ancestor.attrib.get("style", "")
+            ancestor_value = _clean_drawio_value(ancestor.attrib.get("value"))
+            ancestor_position = absolute_position(ancestor)
+            if ancestor_value and "shape=tableRow" in ancestor_style:
+                row_title = ancestor_value
+                lane_source_y[_slug(row_title)] = ancestor_position["y"]
+            elif ancestor_value and "swimlane" in ancestor_style:
+                phase_title = ancestor_value
+                phase_source_x[_slug(phase_title)] = ancestor_position["x"]
+        lane_id = _slug(row_title) if row_title else None
+        if lane_id:
+            lanes.setdefault(lane_id, {"id": lane_id, "title": row_title})
+        phase_id = _slug(phase_title)
+        phases.setdefault(phase_id, {"id": phase_id, "title": phase_title})
+        imported_ids.add(cell_id)
+        pos = absolute_position(cell)
+        nodes.append({"id": _slug(cell_id), "lane_id": lane_id, "phase_id": phase_id, "title": value, "node_type": node_type, "position": pos, "_source_x": pos["x"], "_source_y": pos["y"]})
+
+    if not nodes:
+        return None, "could not extract process-map steps from uploaded artifact"
+
+    lanes = dict(sorted(lanes.items(), key=lambda item: (lane_source_y.get(item[0], 0), item[1]["title"])))
+    phases = dict(sorted(phases.items(), key=lambda item: (phase_source_x.get(item[0], 0), item[1]["title"])))
+    nodes = _normalise_drawio_layout(nodes, lanes, phases)
+
+    connectors: list[dict[str, str | None]] = []
+    for cell_id, cell in cells.items():
+        if cell.attrib.get("edge") != "1":
+            continue
+        source = cell.attrib.get("source")
+        target = cell.attrib.get("target")
+        if source in imported_ids and target in imported_ids:
+            label = _clean_drawio_value(cell.attrib.get("value")) or None
+            connectors.append({"id": _slug(cell_id), "source_node_id": _slug(source), "target_node_id": _slug(target), "label": label})
+
+    return _insert_imported_map(job_id, workspace_id, title, list(lanes.values()), list(phases.values()), nodes, connectors, conn)
+
+
+def _convert_import_to_draft_map(job_id: str, workspace_id: str, filename: str, contents: bytes, conn: sqlite3.Connection) -> tuple[str | None, str | None]:
+    if Path(filename).suffix.lower() == ".drawio":
+        return _convert_drawio_to_draft_map(job_id, workspace_id, contents, conn)
+
     text = contents.decode("utf-8", errors="ignore")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
@@ -136,6 +296,10 @@ def _convert_import_to_draft_map(job_id: str, workspace_id: str, contents: bytes
     if not nodes:
         return None, "could not extract process-map steps from uploaded artifact"
 
+    return _insert_imported_map(job_id, workspace_id, "AI-imported draft current-state map", list(lanes.values()), list(phases.values()), nodes, connectors, conn)
+
+
+def _insert_imported_map(job_id: str, workspace_id: str, title: str, lanes: list[dict], phases: list[dict], nodes: list[dict], connectors: list[dict], conn: sqlite3.Connection) -> tuple[str | None, str | None]:
     map_id = str(uuid4())
     timestamp = now_iso()
     comments = [{
@@ -156,12 +320,12 @@ def _convert_import_to_draft_map(job_id: str, workspace_id: str, contents: bytes
         (
             map_id,
             workspace_id,
-            "AI-imported draft current-state map",
+            title,
             "ai-import-draft",
             "draft",
             None,
-            _json_dump(list(lanes.values())),
-            _json_dump(list(phases.values())),
+            _json_dump(lanes),
+            _json_dump(phases),
             _json_dump(nodes),
             _json_dump(connectors),
             _json_dump(comments),
@@ -211,7 +375,12 @@ def upload_current_state_import(
     filename = file.filename or "import.bin"
     file_type = file.content_type or "application/octet-stream"
     source_retention_expires_at = (datetime.now(UTC) + timedelta(hours=IMPORT_SOURCE_RETENTION_HOURS)).isoformat()
+    extension = Path(filename).suffix.lower()
+    if extension not in ACCEPTED_IMPORT_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="unsupported process-map import file type")
     contents = file.file.read()
+    if len(contents) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="process-map import file is too large")
     upload_dir = db.DATA_DIR / "current-state-imports" / job_id
     upload_dir.mkdir(parents=True, exist_ok=False)
     storage_path = upload_dir / "source"
@@ -241,7 +410,7 @@ def upload_current_state_import(
         ),
     )
     row = _get_workspace_import_job(job_id, actor.workspace.id, conn)
-    map_id, error_message = _convert_import_to_draft_map(job_id, actor.workspace.id, contents, conn)
+    map_id, error_message = _convert_import_to_draft_map(job_id, actor.workspace.id, filename, contents, conn)
     completed_at = now_iso()
     _delete_import_source(row, conn, completed_at)
     conn.execute(
@@ -378,7 +547,7 @@ def update_current_state_map(
 def add_current_state_comment(
     map_id: str,
     payload: CurrentStateCommentCreate,
-    actor: WorkspaceActor = Depends(require_reviewer),
+    actor: WorkspaceActor = Depends(require_current_state_editor),
     conn: sqlite3.Connection = Depends(get_connection),
 ) -> CurrentStateMap:
     existing = _row_to_map(_get_workspace_map(map_id, actor.workspace.id, conn))
@@ -406,7 +575,7 @@ def add_current_state_comment(
 @router.post("/{map_id}/accept", response_model=CurrentStateMap)
 def accept_current_state_map(
     map_id: str,
-    actor: WorkspaceActor = Depends(require_reviewer),
+    actor: WorkspaceActor = Depends(require_current_state_approver),
     conn: sqlite3.Connection = Depends(get_connection),
 ) -> CurrentStateMap:
     _get_workspace_map(map_id, actor.workspace.id, conn)
@@ -437,7 +606,7 @@ def list_current_state_map_versions(
 @router.post("/{map_id}/lock", response_model=CurrentStateMap)
 def lock_current_state_map(
     map_id: str,
-    actor: WorkspaceActor = Depends(require_reviewer),
+    actor: WorkspaceActor = Depends(require_current_state_approver),
     conn: sqlite3.Connection = Depends(get_connection),
 ) -> CurrentStateMap:
     _get_workspace_map(map_id, actor.workspace.id, conn)

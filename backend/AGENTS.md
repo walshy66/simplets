@@ -14,6 +14,7 @@ Owns backend application code in `app/`, backend tests in `tests/`, backend conf
 - Backend is authoritative for auth, roles, approvals, deletion state, connector state, and execution state.
 - Do not persist submitted field data, extracted data, uploaded files, raw PII, or OAuth tokens beyond the retention contract.
 - Keep destination failures explicit, visible, and non-destructive.
+- Current State V1 permission seams may use all workspace staff for create/edit/import/approve while preserving capability-specific guard names for later configurable role permissions.
 - Do not expose raw OAuth tokens or secrets in responses, logs, snapshots, fixtures, or comments.
 
 ## Work Guidance

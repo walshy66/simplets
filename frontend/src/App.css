@@ -720,15 +720,12 @@ body.process-map-open {
   border-radius: 0;
 }
 
-.process-map-visual-lane {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  z-index: 0;
+.process-map-visual-lane-node {
   display: flex;
   gap: 8px;
   align-items: center;
-  min-height: 116px;
+  width: 2200px;
+  min-height: 142px;
   padding: 8px 12px;
   border: 1px dashed rgba(32, 180, 201, 0.38);
   border-radius: 16px;
@@ -736,7 +733,7 @@ body.process-map-open {
   pointer-events: auto;
 }
 
-.process-map-visual-lane input {
+.process-map-visual-lane-node input {
   max-width: 220px;
   border: 0;
   background: transparent;
@@ -744,7 +741,7 @@ body.process-map-open {
   font-weight: 800;
 }
 
-.process-map-visual-lane select {
+.process-map-visual-lane-node select {
   max-width: 180px;
 }
 
@@ -931,13 +928,34 @@ body.process-map-open {
 }
 
 .process-map-node {
+  position: relative;
   display: grid;
-  gap: 4px;
-  padding: 10px;
-  border: 1px solid rgba(32, 180, 201, 0.35);
-  border-radius: 10px;
-  background: rgba(32, 180, 201, 0.08);
+  place-items: center;
+  width: 180px;
+  min-height: 92px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: grab;
+}
+
+.process-map-node::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(32, 180, 201, 0.45);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(9, 3, 35, 0.12);
+  z-index: 0;
+}
+
+.process-map-node-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 6px;
+  width: min(140px, calc(100% - 28px));
+  text-align: center;
 }
 
 .process-map-node input {
@@ -946,30 +964,37 @@ body.process-map-open {
   border: 0;
   background: transparent;
   font-weight: 700;
+  text-align: center;
+}
+
+.process-map-node-process::before {
+  border-radius: 8px;
 }
 
 .process-map-node-decision {
-  transform: rotate(45deg) scale(0.82);
-  min-height: 82px;
+  width: 150px;
+  min-height: 150px;
 }
 
-.process-map-node-decision input,
-.process-map-node-decision span {
-  transform: rotate(-45deg);
+.process-map-node-decision::before {
+  transform: rotate(45deg) scale(0.74);
+  border-radius: 8px;
 }
 
-.process-map-node-start,
-.process-map-node-end {
+.process-map-node-start::before,
+.process-map-node-end::before {
   border-radius: 999px;
 }
 
-.process-map-node-document {
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 4px;
+.process-map-node-document::before {
+  border-radius: 8px 8px 18px 18px;
+  clip-path: path('M 0 0 H 180 V 78 C 135 104 90 58 0 86 Z');
 }
 
 .process-map-node span {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   opacity: 0.75;
 }
 

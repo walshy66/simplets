@@ -158,7 +158,7 @@ def test_current_state_map_node_rejects_unknown_lane_or_phase_when_provided(monk
     assert "lane_id" in response.text
 
 
-def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(monkeypatch, tmp_path):
+def test_current_state_map_staff_can_comment_edit_and_accept(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_workspaces()
 
@@ -170,7 +170,7 @@ def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(m
             json={"node_id": "receive-form", "body": "Please confirm handoff", "resolved": False},
             headers=HOST_A_REVIEWER,
         )
-        rejected_edit = client.put(
+        staff_edit = client.put(
             f"/current-state-maps/{map_id}",
             json={**valid_payload(), "title": "Reviewer mutation"},
             headers=HOST_A_REVIEWER,
@@ -184,7 +184,8 @@ def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(m
     assert body["comments"][-1]["author"] == "alice-reviewer"
     assert body["comments"][-1]["created_at"]
     assert body["comments"][-1]["resolved"] is False
-    assert rejected_edit.status_code == 403
+    assert staff_edit.status_code == 200
+    assert staff_edit.json()["title"] == "Reviewer mutation"
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["status"] == "locked"
 
