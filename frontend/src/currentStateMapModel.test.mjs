@@ -55,7 +55,7 @@ const exportMap = {
   workspace_id: 'ws-a',
   title: 'Client onboarding',
   version_ref: 'accepted-v1',
-  status: 'locked',
+  status: 'approved',
   source_version_id: null,
   lanes: [],
   phases: [],
@@ -68,7 +68,7 @@ const exportMap = {
 assert.deepEqual(buildCurrentStateMapExportMetadata(exportMap, 'Client A'), {
   title: 'Client onboarding',
   workspaceClient: 'Client A',
-  versionStatusDate: 'accepted-v1 · locked · 3 Jan 2026',
+  versionStatusDate: 'accepted-v1 · approved · 3 Jan 2026',
 });
 assert.equal(currentStateMapExportFilename(exportMap, 'png'), 'client-onboarding-accepted-v1.png');
 assert.equal(currentStateMapExportFilename({ ...exportMap, version_ref: null, status: 'draft' }, 'pdf'), 'client-onboarding-draft.pdf');
@@ -155,9 +155,9 @@ assert.equal(commented.comments.at(-1).created_at, '2026-01-02T00:00:00+00:00');
 assert.equal(commented.comments.at(-1).resolved, false);
 assert.throws(() => addCurrentStateComment(canvasMap, 'missing', 'Bad', 'alice-reviewer', '2026-01-02T00:00:00+00:00'), /valid node/);
 
-const lockedMap = { ...canvasMap, status: 'locked', version_ref: 'accepted-v1' };
-assert.equal(currentStateMapVersionLabel(lockedMap), 'accepted-v1 (locked)');
-assert.throws(() => renameCurrentStateNode(lockedMap, 'n1', 'Mutated'), /locked current-state map versions cannot be edited/);
-assert.throws(() => addCurrentStateNode(lockedMap, 'process', 'sales', 'intake', 'Step'), /locked current-state map versions cannot be edited/);
+const approvedMap = { ...canvasMap, status: 'approved', version_ref: 'accepted-v1' };
+assert.equal(currentStateMapVersionLabel(approvedMap), 'accepted-v1 (approved)');
+assert.throws(() => renameCurrentStateNode(approvedMap, 'n1', 'Mutated'), /only draft current-state map versions can be edited/);
+assert.throws(() => addCurrentStateNode(approvedMap, 'process', 'sales', 'intake', 'Step'), /only draft current-state map versions can be edited/);
 
 console.log('currentStateMapModel tests passed');

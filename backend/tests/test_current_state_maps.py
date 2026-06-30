@@ -158,7 +158,7 @@ def test_current_state_map_node_rejects_unknown_lane_or_phase_when_provided(monk
     assert "lane_id" in response.text
 
 
-def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(monkeypatch, tmp_path):
+def test_current_state_map_staff_can_comment_edit_and_accept(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_workspaces()
 
@@ -170,7 +170,7 @@ def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(m
             json={"node_id": "receive-form", "body": "Please confirm handoff", "resolved": False},
             headers=HOST_A_REVIEWER,
         )
-        rejected_edit = client.put(
+        staff_edit = client.put(
             f"/current-state-maps/{map_id}",
             json={**valid_payload(), "title": "Reviewer mutation"},
             headers=HOST_A_REVIEWER,
@@ -184,9 +184,10 @@ def test_current_state_map_reviewer_can_comment_and_accept_without_canvas_edit(m
     assert body["comments"][-1]["author"] == "alice-reviewer"
     assert body["comments"][-1]["created_at"]
     assert body["comments"][-1]["resolved"] is False
-    assert rejected_edit.status_code == 403
+    assert staff_edit.status_code == 200
+    assert staff_edit.json()["title"] == "Reviewer mutation"
     assert accepted.status_code == 200, accepted.text
-    assert accepted.json()["status"] == "locked"
+    assert accepted.json()["status"] == "approved"
 
 
 def test_current_state_map_comment_requires_workspace_and_valid_node(monkeypatch, tmp_path):
@@ -234,31 +235,53 @@ def test_current_state_map_can_save_draft_and_list_version_history(monkeypatch, 
     assert other_history.status_code == 404
 
 
-def test_current_state_map_locked_version_is_immutable_and_can_be_duplicated(monkeypatch, tmp_path):
+def test_current_state_map_approved_version_is_immutable_and_can_be_duplicated(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_workspaces()
 
     with TestClient(app) as client:
         created = client.post("/current-state-maps", json=valid_payload(), headers=HOST_A).json()
-        locked = client.post(f"/current-state-maps/{created['id']}/lock", headers=HOST_A)
-        rejected = client.put(
+        approved = client.post(f"/current-state-maps/{created['id']}/accept", headers=HOST_A)
+        draft_from_approved = client.put(
             f"/current-state-maps/{created['id']}",
             json={**valid_payload(), "title": "Should not save"},
             headers=HOST_A,
         )
         duplicate = client.post(f"/current-state-maps/{created['id']}/duplicate", headers=HOST_A)
 
-    assert locked.status_code == 200, locked.text
-    assert locked.json()["status"] == "locked"
-    assert rejected.status_code == 409
-    assert "locked" in rejected.text
-    assert duplicate.status_code == 201, duplicate.text
-    assert duplicate.json()["status"] == "draft"
-    assert duplicate.json()["source_version_id"] == created["id"]
-    assert duplicate.json()["title"] == "Client onboarding current state (draft)"
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+    assert draft_from_approved.status_code == 200, draft_from_approved.text
+    assert draft_from_approved.json()["status"] == "draft"
+    assert draft_from_approved.json()["source_version_id"] == created["id"]
+    assert duplicate.status_code == 409
+    assert "active draft" in duplicate.text
 
 
-def test_current_state_map_locked_duplicate_is_workspace_scoped(monkeypatch, tmp_path):
+def test_current_state_map_approval_archives_previous_approved_version(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        created = client.post("/current-state-maps", json=valid_payload(), headers=HOST_A).json()
+        approved = client.post(f"/current-state-maps/{created['id']}/accept", headers=HOST_A).json()
+        draft = client.put(
+            f"/current-state-maps/{approved['id']}",
+            json={**valid_payload(), "title": "Updated approved map", "version_ref": "discovery-v2"},
+            headers=HOST_A,
+        ).json()
+        promoted = client.post(f"/current-state-maps/{draft['id']}/accept", headers=HOST_A).json()
+        old = client.get(f"/current-state-maps/{approved['id']}", headers=HOST_A).json()
+        active_list = client.get("/current-state-maps", headers=HOST_A).json()
+        history = client.get(f"/current-state-maps/{promoted['id']}/versions", headers=HOST_A).json()
+
+    assert promoted["status"] == "approved"
+    assert old["status"] == "archived"
+    assert [item["id"] for item in active_list] == [promoted["id"]]
+    assert {item["status"] for item in history} == {"archived", "approved"}
+
+
+def test_current_state_map_approved_duplicate_is_workspace_scoped(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_workspaces()
 

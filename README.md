@@ -149,6 +149,82 @@ Legacy references to the previous local AI coding-agent session dashboard are ob
 
 - [`docs/prd-sts-orchestration-platform.md`](docs/prd-sts-orchestration-platform.md) — current product PRD and implementation decisions
 
+## Getting Started
+
+### Prerequisites
+
+- Python 3.13+
+- Node.js 18+
+- npm or yarn
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run tests to verify setup:
+   ```bash
+   python -m pytest
+   ```
+
+5. Start the backend server:
+   ```bash
+   python -m uvicorn app.main:app --reload
+   ```
+   The backend will run on `http://localhost:8000`
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+   The frontend will typically run on `http://localhost:5173`
+
+### Configuration
+
+Before running the application, ensure you have the required environment variables set:
+
+- **Backend**: Update `.env` files in `backend/` with Clerk API keys and other configuration
+- **Frontend**: Update `.env` files in `frontend/` with API endpoints and Clerk configuration
+
+### Running Tests
+
+**Backend:**
+```bash
+cd backend
+python -m pytest
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm test
+```
+
 ## Development notes
 
 Local setup, package structure, and run commands should be updated as the Activepieces fork is integrated and the clean build structure stabilises.

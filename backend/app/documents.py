@@ -223,11 +223,12 @@ def list_review_queue(
             documents.is_permanent_archive AS document_is_permanent_archive
         FROM workflow_runs
         JOIN documents ON documents.id = workflow_runs.document_id
-        WHERE workflow_runs.extraction_status = ? AND workflow_runs.review_status = ?
+        WHERE workflow_runs.extraction_status = ?
+            AND workflow_runs.review_status IN (?, ?)
             AND workflow_runs.workspace_id = ?
         ORDER BY workflow_runs.updated_at DESC
         """,
-        (WorkflowRunStatus.COMPLETED.value, ReviewStatus.PENDING.value, workspace.id),
+        (WorkflowRunStatus.COMPLETED.value, ReviewStatus.PENDING.value, ReviewStatus.REVIEWED.value, workspace.id),
     ).fetchall()
     return [_row_to_review_queue_item(row) for row in rows]
 
@@ -248,6 +249,28 @@ def get_review_run(
     )
 
 
+def _annotate_reviewer_edits(
+    original_fields: dict | None,
+    updated_fields: dict,
+    reviewer: str,
+    timestamp: str,
+) -> dict:
+    original_fields = original_fields or {}
+    edited_fields = sorted(
+        key for key, value in updated_fields.items() if key != "_review" and original_fields.get(key) != value
+    )
+    review_meta = dict(updated_fields.get("_review") or {})
+    review_meta.update(
+        {
+            "edited_by": reviewer,
+            "edited_at": timestamp,
+            "edited_fields": edited_fields,
+            "field_status": {field: "Reviewer edited" for field in edited_fields},
+        }
+    )
+    return {**updated_fields, "_review": review_meta}
+
+
 @workflow_router.patch("/{workflow_run_id}/review/fields", response_model=WorkflowRun)
 def update_review_fields(
     workflow_run_id: str,
@@ -255,16 +278,46 @@ def update_review_fields(
     conn: sqlite3.Connection = Depends(get_connection),
     actor: WorkspaceActor = Depends(require_reviewer),
 ) -> WorkflowRun:
-    if _get_review_item(conn, workflow_run_id, actor.workspace.id) is None:
+    review_item = _get_review_item(conn, workflow_run_id, actor.workspace.id)
+    if review_item is None:
         raise HTTPException(status_code=404, detail="workflow run not found")
+    if review_item.extracted_fields is None:
+        raise HTTPException(status_code=410, detail="extracted fields have been purged")
     timestamp = now_iso()
+    annotated_fields = _annotate_reviewer_edits(review_item.extracted_fields, update.extracted_fields, update.reviewer, timestamp)
     conn.execute(
         """
         UPDATE workflow_runs
         SET extracted_fields = ?, last_reviewed_by = ?, last_reviewed_at = ?, updated_at = ?
         WHERE id = ?
         """,
-        (json.dumps(update.extracted_fields), update.reviewer, timestamp, timestamp, workflow_run_id),
+        (json.dumps(annotated_fields), update.reviewer, timestamp, timestamp, workflow_run_id),
+    )
+    conn.commit()
+    workflow_run = conn.execute("SELECT * FROM workflow_runs WHERE id = ?", (workflow_run_id,)).fetchone()
+    return row_to_workflow_run(workflow_run)
+
+
+@workflow_router.post("/{workflow_run_id}/review/mark-reviewed", response_model=WorkflowRun)
+def mark_reviewed(
+    workflow_run_id: str,
+    approval: ReviewApprovalRequest,
+    conn: sqlite3.Connection = Depends(get_connection),
+    actor: WorkspaceActor = Depends(require_reviewer),
+) -> WorkflowRun:
+    review_item = _get_review_item(conn, workflow_run_id, actor.workspace.id)
+    if review_item is None:
+        raise HTTPException(status_code=404, detail="workflow run not found")
+    if review_item.extracted_fields is None:
+        raise HTTPException(status_code=410, detail="extracted fields have been purged")
+    timestamp = now_iso()
+    conn.execute(
+        """
+        UPDATE workflow_runs
+        SET review_status = ?, last_reviewed_by = ?, last_reviewed_at = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (ReviewStatus.REVIEWED.value, approval.reviewer, timestamp, timestamp, workflow_run_id),
     )
     conn.commit()
     workflow_run = conn.execute("SELECT * FROM workflow_runs WHERE id = ?", (workflow_run_id,)).fetchone()

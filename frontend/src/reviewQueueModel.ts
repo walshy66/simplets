@@ -21,6 +21,44 @@ export type ApprovalOutcome = {
   destination_pushes: PushOutcome[];
 };
 
+export type InvoiceReviewStatusInput = {
+  review_status: 'pending' | 'reviewed' | 'approved';
+  document: { deletion_status: 'retained' | 'deleted' };
+};
+
+export type InvoiceFieldRow = {
+  key: string;
+  label: string;
+  displayValue: string;
+  provenanceLabel: string;
+  isMissingOrUncertain: boolean;
+  flagReason: string | null;
+};
+
+export type ImproveExtractionGate = {
+  feature_enabled: boolean;
+  subscription_enabled: boolean;
+  permission_allowed: boolean;
+  action_enabled: boolean;
+  unavailable_reason?: string | null;
+};
+
+export type ImproveExtractionControl = {
+  visible: boolean;
+  enabled: boolean;
+  label: string;
+  message: string;
+};
+
+const MVP_INVOICE_FIELDS: { key: string; label: string }[] = [
+  { key: 'invoice_number', label: 'Invoice number' },
+  { key: 'vendor_name', label: 'Vendor' },
+  { key: 'invoice_date', label: 'Invoice date' },
+  { key: 'due_date', label: 'Due date' },
+  { key: 'total_amount', label: 'Total amount' },
+  { key: 'currency', label: 'Currency' },
+];
+
 export function parseEditableFields(value: string): Record<string, unknown> {
   let parsed: unknown;
   try {
@@ -93,4 +131,104 @@ export function flagReason(extractedFields: Record<string, unknown> | null, fiel
 
 export function hasFailedPushes(pushes: PushOutcome[]): boolean {
   return pushes.some((push) => push.status === 'failed');
+}
+
+export function invoiceReviewStatus(item: InvoiceReviewStatusInput): 'Needs review' | 'Reviewed' | 'Purged' {
+  if (item.document.deletion_status === 'deleted') {
+    return 'Purged';
+  }
+  return item.review_status === 'reviewed' || item.review_status === 'approved' ? 'Reviewed' : 'Needs review';
+}
+
+function formatInvoiceValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return 'Missing';
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+function extractionFieldDetails(extractedFields: Record<string, unknown> | null, fieldName: string) {
+  const meta = extractedFields?.['_extraction'] as
+    | { field_details?: Record<string, { source?: string | null; confidence?: string | number | null; flag_reason?: string | null }> }
+    | undefined;
+  return meta?.field_details?.[fieldName] ?? null;
+}
+
+function provenanceLabel(source: unknown, confidence: unknown): string {
+  const sourceLabel = typeof source === 'string' && source.trim() ? source : 'Provenance unavailable';
+  const confidenceLabel =
+    typeof confidence === 'string' || typeof confidence === 'number' ? `${confidence} confidence` : 'confidence unavailable';
+  return `${sourceLabel} · ${confidenceLabel}`;
+}
+
+function hasWeakOrIncompleteExtraction(extractedFields: Record<string, unknown> | null): boolean {
+  return invoiceFieldRows(extractedFields).some((field) => field.isMissingOrUncertain);
+}
+
+export function getImproveExtractionControl({
+  extractedFields,
+  gate,
+}: {
+  extractedFields: Record<string, unknown> | null;
+  gate: ImproveExtractionGate | null | undefined;
+}): ImproveExtractionControl {
+  if (!hasWeakOrIncompleteExtraction(extractedFields)) {
+    return { visible: false, enabled: false, label: 'Improve extraction', message: '' };
+  }
+
+  const failClosedGate = gate ?? {
+    feature_enabled: false,
+    subscription_enabled: false,
+    permission_allowed: false,
+    action_enabled: false,
+    unavailable_reason: 'Enhanced extraction is not available for this workspace.',
+  };
+  const enabled =
+    failClosedGate.feature_enabled &&
+    failClosedGate.subscription_enabled &&
+    failClosedGate.permission_allowed &&
+    failClosedGate.action_enabled;
+
+  if (enabled) {
+    return {
+      visible: true,
+      enabled: true,
+      label: 'Improve extraction',
+      message: 'Uses workspace usage allowance/usage units. It will only run after you choose this action.',
+    };
+  }
+
+  return {
+    visible: true,
+    enabled: false,
+    label: 'Improve extraction',
+    message:
+      failClosedGate.unavailable_reason ??
+      'Enhanced extraction is not enabled yet. No workspace usage allowance/usage units will be consumed.',
+  };
+}
+
+export function invoiceFieldRows(extractedFields: Record<string, unknown> | null): InvoiceFieldRow[] {
+  return MVP_INVOICE_FIELDS.map((field) => {
+    const details = extractionFieldDetails(extractedFields, field.key);
+    const value = extractedFields?.[field.key];
+    const flagged = flaggedFieldNames(extractedFields).includes(field.key);
+    const missing = value === null || value === undefined || value === '';
+    const confidence = details?.confidence;
+    const uncertain = typeof confidence === 'string' && ['low', 'uncertain', 'missing'].includes(confidence.toLowerCase());
+    return {
+      key: field.key,
+      label: field.label,
+      displayValue: formatInvoiceValue(value),
+      provenanceLabel: provenanceLabel(details?.source, confidence),
+      isMissingOrUncertain: missing || flagged || uncertain,
+      flagReason: details?.flag_reason ?? null,
+    };
+  });
 }

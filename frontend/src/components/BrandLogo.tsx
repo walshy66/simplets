@@ -14,10 +14,11 @@ export default function BrandLogo({ logoUrl, name }: { logoUrl: string | null; n
   }, [logoUrl]);
 
   if (logoUrl && !failed) {
+    const src = logoUrl.startsWith('/workspace-branding/') ? `http://localhost:8000${logoUrl}` : logoUrl;
     return (
       <img
         className="brand-logo-img"
-        src={logoUrl}
+        src={src}
         alt={name ? `${name} logo` : 'Workspace logo'}
         onError={() => setFailed(true)}
       />

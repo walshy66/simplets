@@ -116,7 +116,11 @@ def init_db() -> None:
                 deletion_status TEXT NOT NULL CHECK (deletion_status IN ('retained', 'deleted')),
                 uploaded_at TEXT NOT NULL,
                 uploader TEXT NOT NULL,
-                is_permanent_archive INTEGER NOT NULL CHECK (is_permanent_archive IN (0, 1)) DEFAULT 0
+                is_permanent_archive INTEGER NOT NULL CHECK (is_permanent_archive IN (0, 1)) DEFAULT 0,
+                drive_file_id TEXT,
+                drive_web_url TEXT,
+                filename_hash TEXT,
+                filename_redacted TEXT
             )
             """
         )
@@ -165,6 +169,20 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workspace_drive_datastores (
+                workspace_id TEXT PRIMARY KEY,
+                provider TEXT NOT NULL CHECK (provider = 'google_drive'),
+                drive_root_id TEXT NOT NULL,
+                invoice_folder_id TEXT NOT NULL,
+                folder_path TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+            )
+            """
+        )
 
         conn.execute(
             """
@@ -192,7 +210,7 @@ def init_db() -> None:
                 workspace_id TEXT NOT NULL,
                 title TEXT NOT NULL,
                 version_ref TEXT,
-                status TEXT NOT NULL CHECK (status IN ('draft', 'locked')) DEFAULT 'draft',
+                status TEXT NOT NULL CHECK (status IN ('draft', 'approved', 'archived')) DEFAULT 'draft',
                 source_version_id TEXT,
                 lanes TEXT NOT NULL,
                 phases TEXT NOT NULL,
@@ -205,6 +223,39 @@ def init_db() -> None:
             )
             """
         )
+        current_state_map_schema = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'current_state_maps'").fetchone()
+        if current_state_map_schema and "'locked'" in (current_state_map_schema[0] or ""):
+            conn.execute("ALTER TABLE current_state_maps RENAME TO current_state_maps_legacy")
+            conn.execute(
+                """
+                CREATE TABLE current_state_maps (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    version_ref TEXT,
+                    status TEXT NOT NULL CHECK (status IN ('draft', 'approved', 'archived')) DEFAULT 'draft',
+                    source_version_id TEXT,
+                    lanes TEXT NOT NULL,
+                    phases TEXT NOT NULL,
+                    nodes TEXT NOT NULL,
+                    connectors TEXT NOT NULL,
+                    comments TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO current_state_maps (
+                    id, workspace_id, title, version_ref, status, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+                )
+                SELECT id, workspace_id, title, version_ref, CASE status WHEN 'locked' THEN 'approved' ELSE status END, source_version_id, lanes, phases, nodes, connectors, comments, created_at, updated_at
+                FROM current_state_maps_legacy
+                """
+            )
+            conn.execute("DROP TABLE current_state_maps_legacy")
         current_state_map_columns = {column[1] for column in conn.execute("PRAGMA table_info(current_state_maps)").fetchall()}
         if "status" not in current_state_map_columns:
             conn.execute("ALTER TABLE current_state_maps ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'")
@@ -219,6 +270,8 @@ def init_db() -> None:
                 workspace_id TEXT NOT NULL,
                 filename_hash TEXT NOT NULL,
                 filename_redacted TEXT NOT NULL,
+                filename_display TEXT,
+                dismissed_at TEXT,
                 file_type TEXT NOT NULL,
                 uploader TEXT NOT NULL,
                 status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed')),
@@ -238,11 +291,23 @@ def init_db() -> None:
             conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN result_map_id TEXT")
         if "source_retention_expires_at" not in current_state_import_columns:
             conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN source_retention_expires_at TEXT")
+        if "filename_display" not in current_state_import_columns:
+            conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN filename_display TEXT")
+        if "dismissed_at" not in current_state_import_columns:
+            conn.execute("ALTER TABLE current_state_import_jobs ADD COLUMN dismissed_at TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_current_state_import_jobs_workspace ON current_state_import_jobs(workspace_id)")
 
         document_columns = {column[1] for column in conn.execute("PRAGMA table_info(documents)").fetchall()}
         if "workspace_id" not in document_columns:
             conn.execute("ALTER TABLE documents ADD COLUMN workspace_id TEXT")
+        if "drive_file_id" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN drive_file_id TEXT")
+        if "drive_web_url" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN drive_web_url TEXT")
+        if "filename_hash" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN filename_hash TEXT")
+        if "filename_redacted" not in document_columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN filename_redacted TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_workspace ON documents(workspace_id)")
 
         workflow_run_columns = {column[1] for column in conn.execute("PRAGMA table_info(workflow_runs)").fetchall()}

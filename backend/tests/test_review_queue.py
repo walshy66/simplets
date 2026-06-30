@@ -120,28 +120,50 @@ def test_review_detail_marks_source_unavailable_after_deletion(monkeypatch, tmp_
     assert response.json()["source_preview"] == {"available": False, "content": None, "reason": "document no longer retained"}
 
 
-def test_review_fields_can_be_updated_and_approval_requires_screen_review(monkeypatch, tmp_path):
+def test_review_fields_can_be_updated_marked_reviewer_edited_and_approval_requires_screen_review(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_review_run(tmp_path)
 
     with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
         update = client.patch(
             "/workflow-runs/run-1/review/fields",
-            json={"reviewer": "reviewer-1", "extracted_fields": {"summary": "Edited", "count": 2}},
+            json={"reviewer": "reviewer-1", "extracted_fields": {"summary": "Edited", "count": 1}},
         )
+        reviewed = client.post("/workflow-runs/run-1/review/mark-reviewed", json={"reviewer": "reviewer-1", "fields_reviewed": True})
         rejected = client.post("/workflow-runs/run-1/review/approve", json={"reviewer": "reviewer-1", "fields_reviewed": False})
         approved = client.post("/workflow-runs/run-1/review/approve", json={"reviewer": "reviewer-1", "fields_reviewed": True})
         queue = client.get("/workflow-runs/review-queue")
 
     assert update.status_code == 200
-    assert update.json()["extracted_fields"] == {"summary": "Edited", "count": 2}
+    assert update.json()["extracted_fields"]["summary"] == "Edited"
+    assert update.json()["extracted_fields"]["_review"]["edited_by"] == "reviewer-1"
+    assert update.json()["extracted_fields"]["_review"]["edited_fields"] == ["summary"]
+    assert update.json()["extracted_fields"]["_review"]["field_status"]["summary"] == "Reviewer edited"
     assert update.json()["last_reviewed_by"] == "reviewer-1"
+    assert reviewed.status_code == 200
+    assert reviewed.json()["review_status"] == "reviewed"
     assert rejected.status_code == 422
     assert approved.status_code == 200
     assert approved.json()["all_succeeded"] is True
     assert approved.json()["workflow_run"]["review_status"] == "approved"
     assert approved.json()["workflow_run"]["approved_by"] == "reviewer-1"
     assert queue.json() == []
+
+
+def test_explicit_purge_removes_retained_review_data_without_exposing_raw_values(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_review_run(tmp_path)
+    source_path = tmp_path / "data" / "uploads" / "doc-1" / "source.txt"
+
+    with TestClient(app, headers={"x-sts-user": "platform-admin"}) as client:
+        response = client.delete("/workflow-runs/run-1")
+        detail = client.get("/workflow-runs/run-1/review")
+        exported = client.get("/workflow-runs/run-1/export?format=json")
+
+    assert response.status_code == 204
+    assert source_path.exists() is False
+    assert detail.status_code == 404
+    assert exported.status_code == 404
 
 
 def test_approved_run_exports_writeback_audits_and_purges_sensitive_source(monkeypatch, tmp_path):

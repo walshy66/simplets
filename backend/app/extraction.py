@@ -1,12 +1,32 @@
 import base64
+import io
 import json
 import os
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
+
+try:
+    from docx import Document as DocxDocument
+except ImportError:  # pragma: no cover - surfaced when standard provider is used.
+    DocxDocument = None
+try:
+    from PIL import Image, ImageOps
+except ImportError:  # pragma: no cover - surfaced when standard provider is used.
+    Image = None
+    ImageOps = None
+try:
+    from pypdf import PdfReader
+except ImportError:  # pragma: no cover - surfaced when standard provider is used.
+    PdfReader = None
+try:
+    import pytesseract
+except ImportError:  # pragma: no cover - surfaced when standard provider is used.
+    pytesseract = None
 
 from app.models import WorkflowRunStatus
 
@@ -164,6 +184,89 @@ def flag_extracted_fields(
     return fields
 
 
+class StandardInvoiceExtractionProvider:
+    """Local standard invoice extraction using OSS document parsers and Tesseract."""
+
+    image_content_types = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/tiff", "image/bmp"}
+
+    def extract(self, request: ExtractionRequest) -> ExtractionResult:
+        content_type = (request.content_type or "").lower()
+        suffix = Path(request.filename).suffix.lower()
+        if content_type == "application/pdf" or suffix == ".pdf":
+            text = self._pdf_text(request.content)
+        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or suffix == ".docx":
+            text = self._docx_text(request.content)
+        elif content_type in self.image_content_types or suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".tif", ".tiff", ".bmp"}:
+            text = self._image_text(request.content)
+        else:
+            text = request.content.decode("utf-8", errors="replace")
+        return self._extract_from_text(text)
+
+    def _pdf_text(self, content: bytes) -> str:
+        if PdfReader is None:
+            raise RuntimeError("standard extraction requires pypdf")
+        reader = PdfReader(io.BytesIO(content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    def _docx_text(self, content: bytes) -> str:
+        if DocxDocument is None:
+            raise RuntimeError("standard extraction requires python-docx")
+        document = DocxDocument(io.BytesIO(content))
+        return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text)
+
+    def _image_text(self, content: bytes) -> str:
+        if Image is None or ImageOps is None or pytesseract is None:
+            raise RuntimeError("standard image extraction requires Pillow and pytesseract")
+        image = Image.open(io.BytesIO(content)).convert("RGB")
+        image = ImageOps.autocontrast(ImageOps.grayscale(image))
+        return pytesseract.image_to_string(image)
+
+    def _extract_from_text(self, text: str) -> ExtractionResult:
+        fields = {
+            "invoice_number": self._invoice_number(text),
+            "issuer": self._issuer(text),
+            "issue_date": self._match(text, r"(?:issue\s*date|invoice\s*date|date)\s*[:#-]?\s*([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})"),
+            "due_date": self._match(text, r"due\s*date\s*[:#-]?\s*([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})"),
+            "total_amount": self._amount(text),
+            "currency": self._currency(text),
+        }
+        raw_fields = {
+            name: {"value": value, "present": value is not None, "confidence": "medium" if value is not None else "low"}
+            for name, value in fields.items()
+        }
+        flagged = flag_extracted_fields(INTENT_FIELD_DEFINITIONS["invoice"], raw_fields)
+        flagged["_extraction"]["provider"] = "Standard"
+        flagged["_extraction"]["source"] = "local_oss"
+        return ExtractionResult(fields=flagged, suggested_classification="invoice")
+
+    def _invoice_number(self, text: str) -> str | None:
+        value = self._match(text, r"(?:invoice\s*(?:no\.?|number|#)?|inv(?:oice)?\s*#)\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]*)")
+        return value if value and any(char.isdigit() for char in value) else None
+
+    def _match(self, text: str, pattern: str) -> str | None:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        return match.group(1).strip().rstrip(".,") if match else None
+
+    def _issuer(self, text: str) -> str | None:
+        for line in (line.strip() for line in text.splitlines()):
+            if not line or re.search(r"invoice|date|due|total|amount", line, flags=re.IGNORECASE):
+                continue
+            return line.rstrip(".,")
+        return None
+
+    def _amount(self, text: str) -> float | None:
+        match = re.search(r"(?:total|amount\s*due|balance\s*due)\s*[:#-]?\s*(?:AUD|USD|NZD|GBP|EUR)?\s*\$?\s*([0-9][0-9,]*(?:\.[0-9]{2})?)", text, flags=re.IGNORECASE)
+        if not match:
+            return None
+        return float(match.group(1).replace(",", ""))
+
+    def _currency(self, text: str) -> str | None:
+        match = re.search(r"\b(AUD|USD|NZD|GBP|EUR)\b", text, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
+        return "AUD" if "$" in text else None
+
+
 class ClaudeExtractionProvider:
     """Calls the Claude API for document extraction (COA-273).
 
@@ -249,6 +352,8 @@ def get_extraction_provider() -> ExtractionProvider:
         if not api_key:
             raise RuntimeError("STS_EXTRACTION_PROVIDER=claude requires ANTHROPIC_API_KEY")
         return ClaudeExtractionProvider(api_key=api_key)
+    if provider == "standard":
+        return StandardInvoiceExtractionProvider()
     return DemoExtractionProvider()
 
 

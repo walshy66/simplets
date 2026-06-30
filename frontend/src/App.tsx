@@ -5,6 +5,7 @@ import CurrentStateMapsPage from './components/CurrentStateMapsPage';
 import FormsPage from './components/FormsPage';
 import ReviewQueuePanel from './components/ReviewQueuePanel';
 import SettingsPage from './components/SettingsPage';
+import ClientsPage from './components/ClientsPage';
 import WorkflowCanvasPanel from './components/WorkflowCanvasPanel';
 import { AuthControls } from './auth';
 import { PortalRoute, parseRoute, routePath } from './dashboardModel';
@@ -83,16 +84,6 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-function ComingSoonPage({ title, blurb }: { title: string; blurb: string }) {
-  return (
-    <div className="sts-coming-soon">
-      <h2>{title}</h2>
-      <p>{blurb}</p>
-      <span className="sts-coming-soon-badge">Coming soon</span>
-    </div>
-  );
-}
-
 export default function App() {
   const [route, setRoute] = useState<PortalRoute>(() => parseRoute(window.location.pathname));
 
@@ -159,12 +150,7 @@ export default function App() {
         {route === 'forms' ? <FormsPage /> : null}
         {route === 'review' ? <ReviewQueuePanel /> : null}
         {route === 'process-maps' ? <CurrentStateMapsPage onNavigate={navigateToPath} /> : null}
-        {route === 'clients' ? (
-          <ComingSoonPage
-            title="Clients"
-            blurb="A directory of your active clients and their intake activity will live here."
-          />
-        ) : null}
+        {route === 'clients' ? <ClientsPage /> : null}
         {route === 'settings' ? <SettingsPage /> : null}
         {agentDashboardEnabled ? <AgentSessionsDashboard /> : null}
       </main>

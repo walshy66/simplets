@@ -4,6 +4,8 @@ import {
   approveReviewRun,
   getReviewRun,
   listReviewQueue,
+  markReviewRunReviewed,
+  purgeWorkflowRun,
   retryDestinationPush,
   ReviewQueueItem,
   ReviewRunDetail,
@@ -17,7 +19,9 @@ import {
   flaggedFieldNames,
   formatApprovalOutcome,
   formatSourcePreview,
+  getImproveExtractionControl,
   hasFailedPushes,
+  invoiceFieldRows,
   parseEditableFields,
 } from '../reviewQueueModel';
 
@@ -87,6 +91,23 @@ export default function ReviewQueuePanel() {
     }
   }
 
+  async function markReviewed() {
+    if (!selected || !canApproveReviewRun({ hasOpenedExtractedDataScreen, fieldsAreValid: canSaveExtractedFields(fieldsDraft) })) {
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      const workflowRun = await markReviewRunReviewed(selected.id, CURRENT_REVIEWER);
+      setSelected({ ...selected, ...workflowRun });
+      await refreshQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Workflow run failed to mark reviewed');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function approveSelected() {
     if (!selected || !canApproveReviewRun({ hasOpenedExtractedDataScreen, fieldsAreValid: canSaveExtractedFields(fieldsDraft) })) {
       return;
@@ -98,6 +119,24 @@ export default function ReviewQueuePanel() {
       await refreshQueue();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Workflow run failed to approve');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function purgeSelected() {
+    if (!selected) {
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await purgeWorkflowRun(selected.id);
+      setSelected(null);
+      setApprovalCompletion('Retained draft data was purged from SimpleTS.');
+      await refreshQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Workflow run failed to purge');
     } finally {
       setIsSaving(false);
     }
@@ -122,11 +161,14 @@ export default function ReviewQueuePanel() {
 
   const fieldsAreValid = canSaveExtractedFields(fieldsDraft);
   const currentFlagged = selected ? flaggedFieldNames(selected.extracted_fields) : [];
+  const improveExtractionControl = selected
+    ? getImproveExtractionControl({ extractedFields: selected.extracted_fields, gate: selected.improve_extraction_gate })
+    : null;
   const showRetry = lastApproval !== null && !lastApproval.all_succeeded;
 
   return (
     <section className="panel review-queue-panel" aria-labelledby="review-queue-title">
-      <h2 id="review-queue-title">Shared review queue</h2>
+      <h2 id="review-queue-title">Standard document processing review queue</h2>
       <button type="button" onClick={refreshQueue} disabled={isLoading || isSaving}>
         Refresh queue
       </button>
@@ -141,7 +183,7 @@ export default function ReviewQueuePanel() {
       ) : null}
       <div className="review-queue-layout">
         <div>
-          <h3>Pending workflow runs</h3>
+          <h3>Invoice reviews</h3>
           {queue.length === 0 ? (
             <p>No pending workflow runs.</p>
           ) : (
@@ -158,7 +200,7 @@ export default function ReviewQueuePanel() {
           )}
         </div>
         <div className="review-detail">
-          <h3>Source preview and extracted data</h3>
+          <h3>Invoice review detail</h3>
           {selected ? (
             <>
               <p>
@@ -192,15 +234,46 @@ export default function ReviewQueuePanel() {
                   </ul>
                 </div>
               ) : null}
-              <label>
-                Editable extracted fields
-                <textarea
-                  className="form-control"
-                  value={fieldsDraft}
-                  rows={8}
-                  onChange={(event) => setFieldsDraft(event.target.value)}
-                />
-              </label>
+              <div className="invoice-field-list" aria-label="MVP invoice fields">
+                {invoiceFieldRows(selected.extracted_fields).map((field) => (
+                  <div
+                    className={field.isMissingOrUncertain ? 'invoice-field-row invoice-field-attention' : 'invoice-field-row'}
+                    key={field.key}
+                  >
+                    <div>
+                      <strong>{field.label}</strong>
+                      <span>{field.provenanceLabel}</span>
+                    </div>
+                    <div>
+                      <span>{field.displayValue}</span>
+                      {field.isMissingOrUncertain ? (
+                        <em>{field.flagReason ?? 'Missing or uncertain — please confirm before approval.'}</em>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {improveExtractionControl?.visible ? (
+                <div className="improve-extraction-card">
+                  <button type="button" disabled={!improveExtractionControl.enabled || isSaving} onClick={() => setError('Enhanced extraction is not enabled yet. No workspace usage allowance/usage units will be consumed.')}>
+                    {improveExtractionControl.label}
+                  </button>
+                  <p>{improveExtractionControl.message}</p>
+                </div>
+              ) : null}
+              <details className="invoice-field-editor">
+                <summary>Edit extracted field JSON</summary>
+                <p className="session-status">Notes and comments are durable: do not include sensitive client data, raw extracted values, document contents, or secrets.</p>
+                <label>
+                  Editable extracted fields
+                  <textarea
+                    className="form-control"
+                    value={fieldsDraft}
+                    rows={8}
+                    onChange={(event) => setFieldsDraft(event.target.value)}
+                  />
+                </label>
+              </details>
               {!fieldsAreValid ? <p className="session-error">Extracted fields must be a JSON object.</p> : null}
               <div className="review-actions">
                 <button type="button" onClick={saveFields} disabled={!fieldsAreValid || isSaving}>
@@ -208,10 +281,20 @@ export default function ReviewQueuePanel() {
                 </button>
                 <button
                   type="button"
+                  onClick={markReviewed}
+                  disabled={!canApproveReviewRun({ hasOpenedExtractedDataScreen, fieldsAreValid }) || isSaving}
+                >
+                  Mark reviewed
+                </button>
+                <button
+                  type="button"
                   onClick={approveSelected}
                   disabled={!canApproveReviewRun({ hasOpenedExtractedDataScreen, fieldsAreValid }) || isSaving}
                 >
                   Approve reviewed run
+                </button>
+                <button type="button" onClick={purgeSelected} disabled={isSaving}>
+                  Delete/Purge draft data
                 </button>
               </div>
             </>

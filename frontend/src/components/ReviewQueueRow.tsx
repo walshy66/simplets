@@ -1,5 +1,6 @@
 import { ReviewQueueItem } from '../api';
 import { initials, relativeTime } from '../dashboardModel';
+import { invoiceReviewStatus } from '../reviewQueueModel';
 
 // Form submissions land with a generic filename; the submitter name (stored as
 // the document uploader) is the client/business label worth surfacing.
@@ -34,7 +35,9 @@ export default function ReviewQueueRow({
           {reviewItemKind(item)} · {relativeTime(new Date(item.created_at))}
         </div>
       </div>
-      <span className="dash-tag dash-tag-pending">Pending</span>
+      <span className={invoiceReviewStatus(item) === 'Needs review' ? 'dash-tag dash-tag-pending' : 'dash-tag dash-tag-ok'}>
+        {invoiceReviewStatus(item)}
+      </span>
       <button type="button" className="dash-btn-sm" onClick={() => onReview(item.id)}>
         Review
       </button>

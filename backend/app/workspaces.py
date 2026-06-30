@@ -1,12 +1,17 @@
 import os
 import sqlite3
+from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.auth import CurrentUser, WorkspaceActor, require_admin, require_platform_admin
 from app.db import get_connection
 from app.schemas import (
+    ClientContext,
+    DriveDatastore,
+    DriveDatastoreSetup,
+    InvoiceUploadGate,
     Workspace,
     WorkspaceBrandingUpdate,
     WorkspaceCanvasUpdate,
@@ -24,6 +29,15 @@ from app.tenancy import (
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+ALLOWED_LOGO_CONTENT_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+}
+MAX_LOGO_BYTES = 2 * 1024 * 1024
+BRANDING_ASSET_DIR = Path("data/workspace-branding")
 
 
 @router.post("", response_model=Workspace, status_code=status.HTTP_201_CREATED)
@@ -47,9 +61,107 @@ def list_workspaces(
     return [row_to_workspace(row) for row in rows]
 
 
+def current_drive_datastore(conn: sqlite3.Connection, workspace_id: str) -> DriveDatastore | None:
+    row = conn.execute(
+        "SELECT provider, drive_root_id, invoice_folder_id, folder_path FROM workspace_drive_datastores WHERE workspace_id = ?",
+        (workspace_id,),
+    ).fetchone()
+    return DriveDatastore(**dict(row)) if row else None
+
+
 @router.get("/current", response_model=Workspace)
 def current_workspace(workspace: Workspace = Depends(resolve_workspace)) -> Workspace:
     return workspace
+
+
+@router.get("/current/client-context", response_model=ClientContext)
+def current_client_context(
+    workspace: Workspace = Depends(resolve_workspace),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> ClientContext:
+    datastore = current_drive_datastore(conn, workspace.id)
+    return ClientContext(
+        workspace=workspace,
+        drive_datastore=datastore,
+        invoice_upload=InvoiceUploadGate(
+            available=datastore is not None,
+            reason=None if datastore else "google_drive_datastore_setup_required",
+        ),
+    )
+
+
+@router.put("/current/client-context/drive-datastore", response_model=ClientContext)
+def set_drive_datastore(
+    payload: DriveDatastoreSetup,
+    actor: WorkspaceActor = Depends(require_admin),
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> ClientContext:
+    timestamp = now_iso()
+    conn.execute(
+        """
+        INSERT INTO workspace_drive_datastores (
+            workspace_id, provider, drive_root_id, invoice_folder_id, folder_path, created_at, updated_at
+        ) VALUES (?, 'google_drive', ?, ?, ?, ?, ?)
+        ON CONFLICT (workspace_id) DO UPDATE SET
+            drive_root_id = excluded.drive_root_id,
+            invoice_folder_id = excluded.invoice_folder_id,
+            folder_path = excluded.folder_path,
+            updated_at = excluded.updated_at
+        """,
+        (
+            actor.workspace.id,
+            payload.drive_root_id.strip(),
+            payload.invoice_folder_id.strip(),
+            payload.folder_path.strip() if payload.folder_path else None,
+            timestamp,
+            timestamp,
+        ),
+    )
+    conn.commit()
+    datastore = current_drive_datastore(conn, actor.workspace.id)
+    return ClientContext(
+        workspace=actor.workspace,
+        drive_datastore=datastore,
+        invoice_upload=InvoiceUploadGate(available=True),
+    )
+
+
+@router.post("/current/branding/logo", response_model=Workspace)
+async def upload_branding_logo(
+    actor: WorkspaceActor = Depends(require_admin),
+    conn: sqlite3.Connection = Depends(get_connection),
+    file: UploadFile = File(),
+) -> Workspace:
+    extension = ALLOWED_LOGO_CONTENT_TYPES.get(file.content_type or "")
+    if extension is None:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="workspace logo must be a PNG, JPEG, WebP, or SVG image",
+        )
+
+    content = await file.read(MAX_LOGO_BYTES + 1)
+    if len(content) > MAX_LOGO_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="workspace logo is too large")
+
+    workspace_dir = BRANDING_ASSET_DIR / actor.workspace.id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    for stale in workspace_dir.glob("logo.*"):
+        stale.unlink(missing_ok=True)
+    logo_path = workspace_dir / f"logo{extension}"
+    logo_path.write_bytes(content)
+    logo_url = f"/workspace-branding/{actor.workspace.id}/logo{extension}"
+
+    conn.execute(
+        """
+        UPDATE workspaces
+        SET branding_logo_url = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (logo_url, now_iso(), actor.workspace.id),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM workspaces WHERE id = ?", (actor.workspace.id,)).fetchone()
+    return row_to_workspace(row)
 
 
 @router.patch("/current/branding", response_model=Workspace)

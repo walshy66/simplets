@@ -60,8 +60,7 @@ export function currentStateMapPath(route: CurrentStateMapRoute): string {
 export function currentStateMapSummary(map: CurrentStateMap): string {
   const phaseCount = map.phases.length;
   const nodeCount = map.nodes.length;
-  const lockLabel = map.status === 'locked' ? 'locked' : 'draft';
-  return `${phaseCount} ${phaseCount === 1 ? 'phase' : 'phases'} · ${nodeCount} ${nodeCount === 1 ? 'step' : 'steps'} · ${lockLabel}`;
+  return `${phaseCount} ${phaseCount === 1 ? 'phase' : 'phases'} · ${nodeCount} ${nodeCount === 1 ? 'step' : 'steps'} · ${map.status}`;
 }
 
 export function currentStateMapVersionLabel(map: CurrentStateMap): string {
@@ -69,8 +68,8 @@ export function currentStateMapVersionLabel(map: CurrentStateMap): string {
 }
 
 function assertEditable(map: CurrentStateMap): void {
-  if (map.status === 'locked') {
-    throw new Error('locked current-state map versions cannot be edited');
+  if (map.status !== 'draft') {
+    throw new Error('only draft current-state map versions can be edited');
   }
 }
 

@@ -94,6 +94,30 @@ class WorkspaceCanvasUpdate(BaseModel):
     activepieces_project_id: str | None = None
 
 
+class DriveDatastoreSetup(BaseModel):
+    drive_root_id: str = Field(min_length=1)
+    invoice_folder_id: str = Field(min_length=1)
+    folder_path: str | None = None
+
+
+class DriveDatastore(BaseModel):
+    provider: Literal["google_drive"] = "google_drive"
+    drive_root_id: str
+    invoice_folder_id: str
+    folder_path: str | None = None
+
+
+class InvoiceUploadGate(BaseModel):
+    available: bool
+    reason: str | None = None
+
+
+class ClientContext(BaseModel):
+    workspace: Workspace
+    drive_datastore: DriveDatastore | None = None
+    invoice_upload: InvoiceUploadGate
+
+
 class ConnectorConnection(BaseModel):
     """Public connection state. Token material is intentionally absent."""
 
@@ -152,6 +176,10 @@ class DocumentMetadata(BaseModel):
     uploaded_at: str
     uploader: str
     is_permanent_archive: bool = False
+    drive_file_id: str | None = None
+    drive_web_url: str | None = None
+    filename_hash: str | None = None
+    filename_redacted: str | None = None
 
 
 class WorkflowRun(BaseModel):
@@ -309,7 +337,7 @@ class CurrentStateCommentCreate(BaseModel):
 class CurrentStateMapCreate(BaseModel):
     title: str = Field(min_length=1)
     version_ref: str | None = None
-    status: Literal["draft", "locked"] = "draft"
+    status: Literal["draft", "approved", "archived"] = "draft"
     source_version_id: str | None = None
     lanes: list[CurrentStateLane] = Field(default_factory=list)
     phases: list[CurrentStatePhase] = Field(default_factory=lambda: [CurrentStatePhase(id="process", title="Process")])
@@ -352,6 +380,8 @@ class CurrentStateImportJob(BaseModel):
     workspace_id: str
     filename_hash: str
     filename_redacted: str
+    filename_display: str | None = None
+    dismissed_at: str | None = None
     file_type: str
     uploader: str
     status: Literal["pending", "succeeded", "failed"]

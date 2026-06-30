@@ -1,5 +1,6 @@
 """COA-297/299: generic imports create workspace-scoped conversion jobs with source retention cleanup."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -28,8 +29,9 @@ def test_current_state_import_upload_deletes_source_and_keeps_redacted_audit_met
     assert body["file_type"] == "application/pdf"
     assert body["uploader"] == "alice-admin"
     assert body["filename_redacted"] == "[redacted].pdf"
+    assert body["filename_display"] == "Client PII Export.pdf"
+    assert body["dismissed_at"] is None
     assert len(body["filename_hash"]) == 64
-    assert "Client PII" not in response.text
     assert "temporary_storage_path" not in body
     assert "source_deleted_at" not in body
     assert "source_retention_expires_at" not in body
@@ -75,7 +77,7 @@ def test_current_state_import_upload_converts_artifact_to_cleanup_required_draft
         response = client.post(
             "/current-state-imports",
             headers=HOST_A,
-            files={"file": ("process.txt", b"Sales | Intake | Receive form | process\nCRM | Review | Update record | document\nReceive form -> Update record | handoff", "text/plain")},
+            files={"file": ("process.xml", b"Sales | Intake | Receive form | process\nCRM | Review | Update record | document\nReceive form -> Update record | handoff", "application/xml")},
         )
 
     assert response.status_code == 201, response.text
@@ -95,6 +97,42 @@ def test_current_state_import_upload_converts_artifact_to_cleanup_required_draft
     assert "requires human cleanup" in draft["comments"]
 
 
+def test_current_state_import_upload_parses_drawio_vertices_edges_and_swimlanes(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+    drawio = b'''<mxfile host="app.diagrams.net"><diagram name="Client Intake"><mxGraphModel><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="lane" parent="1" style="shape=tableRow;" value="Operations" vertex="1"><mxGeometry as="geometry"/></mxCell>
+      <mxCell id="phase" parent="lane" style="swimlane;" value="Triage" vertex="1"><mxGeometry as="geometry"/></mxCell>
+      <mxCell id="start" parent="phase" style="rounded=1;whiteSpace=wrap;html=1;" value="Receive referral" vertex="1"><mxGeometry x="10" y="20" width="120" height="60" as="geometry"/></mxCell>
+      <mxCell id="decision" parent="phase" style="shape=mxgraph.flowchart.decision;whiteSpace=wrap;html=1;" value="Suitable?" vertex="1"><mxGeometry x="160" y="20" width="100" height="80" as="geometry"/></mxCell>
+      <mxCell id="edge" parent="phase" source="start" target="decision" value="review" edge="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel></diagram></mxfile>'''
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("client-intake.drawio", drawio, "application/octet-stream")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "succeeded"
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        draft = conn.execute("SELECT * FROM current_state_maps WHERE id = ?", (body["result_map_id"],)).fetchone()
+    assert draft["title"] == "Client Intake"
+    assert json.loads(draft["lanes"])[0]["title"] == "Operations"
+    assert json.loads(draft["phases"])[0]["title"] == "Triage"
+    nodes = json.loads(draft["nodes"])
+    assert [node["title"] for node in nodes] == ["Receive referral", "Suitable?"]
+    assert {node["node_type"] for node in nodes} == {"process", "decision"}
+    assert nodes[0]["position"] == {"x": 220, "y": 140}
+    assert nodes[1]["position"] == {"x": 500, "y": 140}
+    assert json.loads(draft["connectors"])[0]["label"] == "review"
+
+
 def test_current_state_import_conversion_failure_deletes_source_and_exposes_retryable_error(monkeypatch, tmp_path):
     use_temp_db(monkeypatch, tmp_path)
     seed_workspaces()
@@ -103,7 +141,7 @@ def test_current_state_import_conversion_failure_deletes_source_and_exposes_retr
         response = client.post(
             "/current-state-imports",
             headers=HOST_A,
-            files={"file": ("blank.txt", b"", "text/plain")},
+            files={"file": ("blank.pdf", b"", "application/pdf")},
         )
 
     assert response.status_code == 201, response.text
@@ -125,7 +163,7 @@ def test_current_state_import_cleanup_deletes_expired_pending_or_failed_sources_
         pending = client.post(
             "/current-state-imports",
             headers=HOST_A,
-            files={"file": ("pending.txt", b"demo", "text/plain")},
+            files={"file": ("pending.drawio", b"demo", "application/xml")},
         ).json()
 
     stale_source = tmp_path / "data" / "current-state-imports" / pending["id"] / "source"
@@ -149,7 +187,94 @@ def test_current_state_import_cleanup_deletes_expired_pending_or_failed_sources_
         conn.row_factory = db.sqlite3.Row
         row = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (pending["id"],)).fetchone()
     assert row["source_deleted_at"] is not None
-    assert row["filename_redacted"] == "[redacted].txt"
+    assert row["filename_redacted"] == "[redacted].drawio"
+
+
+def test_failed_current_state_import_can_be_dismissed_from_default_list(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+
+    with TestClient(app) as client:
+        created = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("failed.drawio", b"demo", "application/xml")},
+        ).json()
+        dismiss = client.post(f"/current-state-imports/{created['id']}/dismiss", headers=HOST_A)
+        failed_list = client.get("/current-state-imports", headers=HOST_A)
+
+    assert dismiss.status_code == 200, dismiss.text
+    assert dismiss.json()["dismissed_at"] is not None
+    assert failed_list.status_code == 200
+    assert failed_list.json() == []
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        row = conn.execute("SELECT * FROM current_state_import_jobs WHERE id = ?", (created["id"],)).fetchone()
+    assert row["dismissed_at"] is not None
+    assert row["filename_redacted"] == "[redacted].drawio"
+
+
+def test_current_state_import_upload_parses_mermaid_flowchart(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+    mermaid = b'''flowchart LR
+      A([Start]) --> B[Receive referral]
+      B -->|review| C{Suitable?}
+      C --> D[/Create file/]
+      D --> E([End])
+    '''
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("client-intake.mmd", mermaid, "text/plain")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "succeeded"
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        draft = conn.execute("SELECT * FROM current_state_maps WHERE id = ?", (body["result_map_id"],)).fetchone()
+    nodes = json.loads(draft["nodes"])
+    assert [node["title"] for node in nodes] == ["Start", "Receive referral", "Suitable?", "Create file", "End"]
+    assert [node["node_type"] for node in nodes] == ["start", "process", "decision", "document", "end"]
+    assert json.loads(draft["connectors"])[1]["label"] == "review"
+
+
+def test_current_state_import_upload_parses_bpmn_process(monkeypatch, tmp_path):
+    use_temp_db(monkeypatch, tmp_path)
+    seed_workspaces()
+    bpmn = b'''<?xml version="1.0" encoding="UTF-8"?>
+    <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+      <process id="client_intake">
+        <startEvent id="start" name="Start" />
+        <task id="receive" name="Receive referral" />
+        <exclusiveGateway id="decision" name="Suitable?" />
+        <endEvent id="end" name="End" />
+        <sequenceFlow id="flow1" sourceRef="start" targetRef="receive" />
+        <sequenceFlow id="flow2" name="review" sourceRef="receive" targetRef="decision" />
+        <sequenceFlow id="flow3" sourceRef="decision" targetRef="end" />
+      </process>
+    </definitions>'''
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/current-state-imports",
+            headers=HOST_A,
+            files={"file": ("client-intake.bpmn", bpmn, "application/xml")},
+        )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "succeeded"
+    with db.sqlite3.connect(db.DB_PATH) as conn:
+        conn.row_factory = db.sqlite3.Row
+        draft = conn.execute("SELECT * FROM current_state_maps WHERE id = ?", (body["result_map_id"],)).fetchone()
+    nodes = json.loads(draft["nodes"])
+    assert [node["node_type"] for node in nodes] == ["start", "process", "decision", "end"]
+    assert json.loads(draft["connectors"])[1]["label"] == "review"
 
 
 def test_failed_current_state_import_job_is_visible_and_retryable(monkeypatch, tmp_path):
@@ -160,7 +285,7 @@ def test_failed_current_state_import_job_is_visible_and_retryable(monkeypatch, t
         created = client.post(
             "/current-state-imports",
             headers=HOST_A,
-            files={"file": ("export.csv", b"demo", "text/csv")},
+            files={"file": ("export.drawio", b"demo", "application/xml")},
         ).json()
         with db.sqlite3.connect(db.DB_PATH) as conn:
             conn.execute(
